@@ -13,7 +13,6 @@ backend/.env
 backend/keys/
 
 # IDE & OS
-.cursor/*
 .cursor/
 .idea/
 .vscode/
