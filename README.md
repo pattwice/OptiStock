@@ -78,4 +78,4 @@ npm run dev
 ## Project status
 
 - [x] Phase 0 — Foundation
-- [ ] Phase 1 — Item & LOT Management (backend APIs done; frontend pages pending)
+- [ ] Phase 1 — Item & LOT Management (frontend pages done; end-to-end verification pending)

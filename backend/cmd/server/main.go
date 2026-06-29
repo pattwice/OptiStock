@@ -16,6 +16,7 @@ import (
 	"optistock/internal/domain/item"
 	"optistock/internal/domain/lot"
 	"optistock/internal/domain/receiving"
+	"optistock/internal/domain/stock"
 	"optistock/internal/middleware"
 	"optistock/pkg/response"
 )
@@ -62,6 +63,10 @@ func main() {
 	receivingService := receiving.NewService(receivingRepo)
 	receivingHandler := receiving.NewHandler(receivingService)
 
+	stockRepo := stock.NewRepository(pool)
+	stockService := stock.NewService(stockRepo)
+	stockHandler := stock.NewHandler(stockService)
+
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			return response.Fail(c, err)
@@ -95,6 +100,9 @@ func main() {
 
 	receivingRoutes := protected.Group("/receiving")
 	receivingHandler.RegisterRoutes(receivingRoutes)
+
+	stockRoutes := protected.Group("/stock")
+	stockHandler.RegisterRoutes(stockRoutes)
 
 	go func() {
 		log.Printf("api listening on :%s", cfg.HTTPPort)

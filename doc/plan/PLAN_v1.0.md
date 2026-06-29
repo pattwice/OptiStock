@@ -82,12 +82,12 @@
 - [x] Negative stock prevention enforced in receiving service before insert
 
 ### Frontend
-- [ ] Item Master page — table with Item_Type filter, create/edit modal
-- [ ] BOM page — tree view per parent item, add/activate version
-- [ ] LOT Master page — table with status badges, status-change action (role-gated)
-- [ ] Receiving page — PO Receipt form (item, supplier lot, qty, damage optional)
-- [ ] Adjustments page — ADJ_IN / ADJ_OUT form with Reason_Code dropdown
-- [ ] Stock On Hand page — table from `v_lot_available_stock` (physical vs available), exportable
+- [x] Item Master page — table with Item_Type filter, create/edit modal
+- [x] BOM page — tree view per parent item, add/activate version
+- [x] LOT Master page — table with status badges, status-change action (role-gated)
+- [x] Receiving page — PO Receipt form (item, supplier lot, qty, damage optional)
+- [x] Adjustments page — ADJ_IN / ADJ_OUT form with Reason_Code dropdown
+- [x] Stock On Hand page — table from `v_lot_available_stock` (physical vs available), exportable
 
 **Done when:** A item can be created, a LOT received via PO, stock appears in Stock On Hand, and a manual adjustment updates it correctly.
 

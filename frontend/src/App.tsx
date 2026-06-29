@@ -4,6 +4,12 @@ import { AppLayout } from './components/AppLayout'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { DashboardPage } from './pages/DashboardPage'
 import { LoginPage } from './pages/LoginPage'
+import { AdjustmentsPage } from './pages/inventory/AdjustmentsPage'
+import { BomPage } from './pages/inventory/BomPage'
+import { ItemsPage } from './pages/inventory/ItemsPage'
+import { LotsPage } from './pages/inventory/LotsPage'
+import { ReceivingPage } from './pages/inventory/ReceivingPage'
+import { StockOnHandPage } from './pages/inventory/StockOnHandPage'
 import { refreshSession } from './api/auth'
 import { useAuthStore } from './store/authStore'
 
@@ -49,6 +55,12 @@ export default function App() {
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
             <Route path="/" element={<DashboardPage />} />
+            <Route path="/inventory/items" element={<ItemsPage />} />
+            <Route path="/inventory/bom" element={<BomPage />} />
+            <Route path="/inventory/lots" element={<LotsPage />} />
+            <Route path="/inventory/receiving" element={<ReceivingPage />} />
+            <Route path="/inventory/adjustments" element={<AdjustmentsPage />} />
+            <Route path="/inventory/stock" element={<StockOnHandPage />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/login" replace />} />
