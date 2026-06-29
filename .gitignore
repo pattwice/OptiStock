@@ -1,1 +1,28 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Build output
+backend/tmp/
+frontend/dist/
+
+# Environment & secrets
+.env
+.env.local
+backend/.env
+backend/keys/
+
+# IDE & OS
 .cursor/
+.idea/
+.vscode/
+*.swp
+Thumbs.db
+.DS_Store
+
+# Logs
+*.log
+
+# Go
+backend/bin/
+*.exe

@@ -24,30 +24,30 @@
 **Goal:** Every developer can run the full stack locally with one command. Auth works end-to-end.
 
 ### Backend
-- [ ] `go mod init` — install Fiber, pgx/v5, golang-migrate, golang-jwt, bcrypt, air (hot reload)
-- [ ] Project folder structure per `ARCH_v1.0.md §4`
-- [ ] `internal/config/` — load env vars from `.env`
-- [ ] `internal/database/` — pgxpool setup + migration runner
-- [ ] First migration: `000001_create_users.up.sql` (id, name, email, password_hash, role, created_at)
-- [ ] `internal/auth/` — JWT RS256 issue + verify, bcrypt hash/compare
-- [ ] Auth endpoints: `POST /api/v1/auth/login`, `POST /api/v1/auth/refresh`
-- [ ] Middleware: JWT guard, role guard, request logger
-- [ ] `pkg/apperror/` — typed error codes from `ARCH_v1.0.md §6`
+- [x] `go mod init` — install Fiber, pgx/v5, golang-migrate, golang-jwt, bcrypt, air (hot reload)
+- [x] Project folder structure per `ARCH_v1.0.md §4`
+- [x] `internal/config/` — load env vars from `.env`
+- [x] `internal/database/` — pgxpool setup + migration runner
+- [x] First migration: `000001_create_users.up.sql` (id, name, email, password_hash, role, created_at)
+- [x] `internal/auth/` — JWT RS256 issue + verify, bcrypt hash/compare
+- [x] Auth endpoints: `POST /api/v1/auth/login`, `POST /api/v1/auth/refresh`
+- [x] Middleware: JWT guard, role guard, request logger
+- [x] `pkg/apperror/` — typed error codes from `ARCH_v1.0.md §6`
 
 ### Frontend
-- [ ] `npm create vite` — React + TypeScript
-- [ ] Install: Ant Design, Zustand, Axios, React Router
-- [ ] Login page — calls `/auth/login`, stores JWT in memory + refresh token in httpOnly cookie
-- [ ] Auth context / Zustand slice — current user, role, logout
-- [ ] Route guard component — redirects to login if unauthenticated
-- [ ] Shell layout — sidebar nav, top bar, notification area (placeholder)
+- [x] `npm create vite` — React + TypeScript
+- [x] Install: Ant Design, Zustand, Axios, React Router
+- [x] Login page — calls `/auth/login`, stores JWT in memory + refresh token in httpOnly cookie
+- [x] Auth context / Zustand slice — current user, role, logout
+- [x] Route guard component — redirects to login if unauthenticated
+- [x] Shell layout — sidebar nav, top bar, notification area (placeholder)
 
 ### Infrastructure
-- [ ] `docker-compose.dev.yml` — services: `postgres`, `api` (air), `frontend` (vite)
-- [ ] `Dockerfile.backend` (dev stage with air)
-- [ ] `Dockerfile.frontend` (dev stage with vite)
-- [ ] `.env.example` — all required env vars documented
-- [ ] golangci-lint config, ESLint + Prettier config
+- [x] `docker-compose.dev.yml` — services: `postgres`, `api` (air), `frontend` (vite)
+- [x] `Dockerfile.backend` (dev stage with air)
+- [x] `Dockerfile.frontend` (dev stage with vite)
+- [x] `.env.example` — all required env vars documented
+- [x] golangci-lint config, ESLint + Prettier config
 
 **Done when:** `docker compose up` starts all services; login returns a JWT; protected route rejects unauthenticated requests.
 
