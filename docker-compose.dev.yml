@@ -1,16 +1,18 @@
 services:
   postgres:
     image: postgres:16-alpine
+    env_file:
+      - .env
     environment:
-      POSTGRES_USER: optistock
-      POSTGRES_PASSWORD: optistock
-      POSTGRES_DB: optistock
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U optistock -d optistock"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -23,7 +25,7 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgres://optistock:optistock@postgres:5432/optistock?sslmode=disable
+      POSTGRES_HOST: postgres
       MIGRATIONS_PATH: migrations
       JWT_PRIVATE_KEY_PATH: keys/private.pem
       JWT_PUBLIC_KEY_PATH: keys/public.pem

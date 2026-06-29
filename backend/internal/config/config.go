@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"time"
@@ -24,10 +25,15 @@ type Config struct {
 func Load() (*Config, error) {
 	_ = godotenv.Load()
 
+	databaseURL, err := resolveDatabaseURL()
+	if err != nil {
+		return nil, err
+	}
+
 	cfg := &Config{
 		AppEnv:            getEnv("APP_ENV", "development"),
 		HTTPPort:          getEnv("HTTP_PORT", "8080"),
-		DatabaseURL:       getEnv("DATABASE_URL", "postgres://optistock:optistock@localhost:5432/optistock?sslmode=disable"),
+		DatabaseURL:       databaseURL,
 		MigrationsPath:    getEnv("MIGRATIONS_PATH", "migrations"),
 		JWTPrivateKeyPath: getEnv("JWT_PRIVATE_KEY_PATH", "keys/private.pem"),
 		JWTPublicKeyPath:  getEnv("JWT_PUBLIC_KEY_PATH", "keys/public.pem"),
@@ -47,6 +53,49 @@ func Load() (*Config, error) {
 	cfg.RefreshTokenTTL = time.Duration(refreshDays) * 24 * time.Hour
 
 	return cfg, nil
+}
+
+func resolveDatabaseURL() (string, error) {
+	if explicit := os.Getenv("DATABASE_URL"); explicit != "" {
+		return explicit, nil
+	}
+
+	user, err := requireEnv("POSTGRES_USER")
+	if err != nil {
+		return "", err
+	}
+	password, err := requireEnv("POSTGRES_PASSWORD")
+	if err != nil {
+		return "", err
+	}
+	dbName, err := requireEnv("POSTGRES_DB")
+	if err != nil {
+		return "", err
+	}
+
+	host := getEnv("POSTGRES_HOST", "localhost")
+	port := getEnv("POSTGRES_PORT", "5432")
+
+	if password == "change-me-before-starting" {
+		return "", fmt.Errorf("set POSTGRES_PASSWORD in .env before starting (copy from .env.example)")
+	}
+
+	return fmt.Sprintf(
+		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
+		url.QueryEscape(user),
+		url.QueryEscape(password),
+		host,
+		port,
+		url.PathEscape(dbName),
+	), nil
+}
+
+func requireEnv(key string) (string, error) {
+	value := os.Getenv(key)
+	if value == "" {
+		return "", fmt.Errorf("missing required environment variable: %s", key)
+	}
+	return value, nil
 }
 
 func getEnv(key, fallback string) string {
