@@ -31,7 +31,14 @@ const menuItems = [
       { key: '/inventory/stock', icon: <DatabaseOutlined />, label: <Link to="/inventory/stock">Stock On Hand</Link> },
     ],
   },
-  { key: '/workorders', icon: <FileTextOutlined />, label: 'Work Orders', disabled: true },
+  {
+    key: 'workorders',
+    icon: <FileTextOutlined />,
+    label: 'Production',
+    children: [
+      { key: '/workorders', label: <Link to="/workorders">Work Orders</Link> },
+    ],
+  },
   { key: '/reports', icon: <FileTextOutlined />, label: 'Reports', disabled: true },
   { key: '/admin', icon: <SettingOutlined />, label: 'Admin', disabled: true },
 ]
@@ -39,11 +46,14 @@ const menuItems = [
 function selectedKeys(pathname: string): string[] {
   if (pathname === '/') return ['/']
   if (pathname.startsWith('/inventory')) return [pathname]
+  if (pathname.startsWith('/workorders')) return [pathname === '/workorders/new' ? '/workorders' : pathname]
   return [pathname]
 }
 
 function openKeys(pathname: string): string[] {
-  return pathname.startsWith('/inventory') ? ['inventory'] : []
+  if (pathname.startsWith('/inventory')) return ['inventory']
+  if (pathname.startsWith('/workorders')) return ['workorders']
+  return []
 }
 
 export function AppLayout() {

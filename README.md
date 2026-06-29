@@ -6,7 +6,7 @@ Production & inventory management for contract packaging and secondary manufactu
 
 - **Backend:** Go + Fiber + PostgreSQL
 - **Frontend:** React + TypeScript + Ant Design + Vite
-- **Docs:** `doc/srs/`, `doc/architecture/`, `doc/plan/`
+- **Docs:** `doc/srs/`, `doc/architecture/`, `doc/plan/`, `doc/testing/AGENT_BROWSER_GUIDE.md`
 
 ## Quick start — local dev (recommended)
 
@@ -78,4 +78,8 @@ npm run dev
 ## Project status
 
 - [x] Phase 0 — Foundation
-- [ ] Phase 1 — Item & LOT Management (frontend pages done; end-to-end verification pending)
+- [x] Phase 1 — Item & LOT Management
+- [x] Phase 2 — Work Orders
+- [ ] Phase 3 — Approval Flow
+
+**Browser testing:** see `doc/testing/AGENT_BROWSER_GUIDE.md`

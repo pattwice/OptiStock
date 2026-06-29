@@ -8,7 +8,7 @@ export function DashboardPage() {
     <div>
       <Typography.Title level={3}>Dashboard</Typography.Title>
       <Typography.Paragraph type="secondary">
-        Welcome back, {user?.name}. Use the Inventory menu to manage items, receive stock, and view on-hand quantities.
+        Welcome back, {user?.name}. Use Inventory for stock, or Production → Work Orders for the full WO lifecycle.
       </Typography.Paragraph>
 
       <Row gutter={[16, 16]}>
@@ -24,7 +24,7 @@ export function DashboardPage() {
         </Col>
         <Col xs={24} md={8}>
           <Card>
-            <Statistic title="Work orders" value="Phase 2" />
+            <Statistic title="Work orders" value="Active" />
           </Card>
         </Col>
       </Row>

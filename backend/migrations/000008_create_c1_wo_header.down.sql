@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS c1_wo_header;

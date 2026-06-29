@@ -17,7 +17,8 @@ import type { BomRow, Item } from '../../types/inventory'
 
 export function BomPage() {
   const [parentCode, setParentCode] = useState<string>()
-  const [items, setItems] = useState<Item[]>([])
+  const [parentItems, setParentItems] = useState<Item[]>([])
+  const [componentItems, setComponentItems] = useState<Item[]>([])
   const [rows, setRows] = useState<BomRow[]>([])
   const [loading, setLoading] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
@@ -25,7 +26,10 @@ export function BomPage() {
 
   useEffect(() => {
     listItems()
-      .then((data) => setItems(data.filter((i) => i.item_type === 'FG' || i.item_type === 'SFG')))
+      .then((data) => {
+        setParentItems(data.filter((i) => i.item_type === 'FG' || i.item_type === 'SFG'))
+        setComponentItems(data.filter((i) => i.item_type === 'RM' || i.item_type === 'SFG'))
+      })
       .catch(() => message.error('Failed to load items'))
   }, [])
 
@@ -94,8 +98,14 @@ export function BomPage() {
     },
   ]
 
-  const fgOptions = items.map((i) => ({ value: i.item_code, label: `${i.item_code} — ${i.description}` }))
-  const componentOptions = items.map((i) => ({ value: i.item_code, label: i.item_code }))
+  const fgOptions = parentItems.map((i) => ({
+    value: i.item_code,
+    label: `${i.item_code} — ${i.description}`,
+  }))
+  const componentOptions = componentItems.map((i) => ({
+    value: i.item_code,
+    label: `${i.item_code} — ${i.description}`,
+  }))
 
   return (
     <div>

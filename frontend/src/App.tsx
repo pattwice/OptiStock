@@ -10,6 +10,9 @@ import { ItemsPage } from './pages/inventory/ItemsPage'
 import { LotsPage } from './pages/inventory/LotsPage'
 import { ReceivingPage } from './pages/inventory/ReceivingPage'
 import { StockOnHandPage } from './pages/inventory/StockOnHandPage'
+import { WorkOrderCreatePage } from './pages/workorders/WorkOrderCreatePage'
+import { WorkOrderDetailPage } from './pages/workorders/WorkOrderDetailPage'
+import { WorkOrdersPage } from './pages/workorders/WorkOrdersPage'
 import { refreshSession } from './api/auth'
 import { useAuthStore } from './store/authStore'
 
@@ -61,6 +64,9 @@ export default function App() {
             <Route path="/inventory/receiving" element={<ReceivingPage />} />
             <Route path="/inventory/adjustments" element={<AdjustmentsPage />} />
             <Route path="/inventory/stock" element={<StockOnHandPage />} />
+            <Route path="/workorders" element={<WorkOrdersPage />} />
+            <Route path="/workorders/new" element={<WorkOrderCreatePage />} />
+            <Route path="/workorders/:woNumber" element={<WorkOrderDetailPage />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/login" replace />} />

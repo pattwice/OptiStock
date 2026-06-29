@@ -98,46 +98,47 @@
 **Goal:** Full WO lifecycle works end-to-end — DRAFT through COMPLETED — with correct ledger writes and audit trail.
 
 ### Migrations
-- [ ] `000008_create_c1_wo_header.up.sql` — Table C1
-- [ ] `000009_create_c1_5_wo_requirements.up.sql` — Table C1.5
-- [ ] `000010_create_c2_wo_allocations.up.sql` — Table C2
-- [ ] `000011_create_d1_audit_log.up.sql` — Table D1
+- [x] `000008_create_c1_wo_header.up.sql` — Table C1
+- [x] `000009_create_c1_5_wo_requirements.up.sql` — Table C1.5
+- [x] `000010_create_c2_wo_allocations.up.sql` — Table C2
+- [x] `000011_create_d1_audit_log.up.sql` — Table D1
+- [x] `000012_update_stock_views_reservations.up.sql` — C2 reservations in available stock views
 
 ### Backend — BOM Explosion
-- [ ] Recursive BOM walk service: FG → SFG → RM, multiply Qty_Per_Set at each level, aggregate to RM
-- [ ] Guard: only `Is_Active = TRUE` BOM rows used; error if no active BOM found
+- [x] Recursive BOM walk service: FG → SFG → RM, multiply Qty_Per_Set at each level, aggregate to RM
+- [x] Guard: only `Is_Active = TRUE` BOM rows used; error if no active BOM found
 
 ### Backend — WO Lifecycle
-- [ ] `domain/workorder/` — create WO (DRAFT), auto-trigger BOM explosion → populate C1.5
-- [ ] FEFO+FIFO allocation engine:
+- [x] `domain/workorder/` — create WO (DRAFT), auto-trigger BOM explosion → populate C1.5
+- [x] FEFO+FIFO allocation engine:
   - Query `v_lot_available_stock` filtered by item, Status = Active, available > 0
   - Order: EXP_Date ASC NULLS LAST, MFG_Date ASC
   - `SELECT ... FOR UPDATE SKIP LOCKED` inside transaction
   - Fill C2 rows sequentially until Total_Needed_Qty met
-- [ ] `DRAFT → RESERVED` — run allocation, return auto-proposal to frontend; accept or override
-- [ ] Manual override — user replaces proposed LOT(s); logged to D1 as `Manual_Override`
-- [ ] `RESERVED → IN_PRODUCTION` — status change, D1 entry
-- [ ] Over-usage resolution — delta allocation (same FEFO+FIFO on extra qty), accept or override
-- [ ] `IN_PRODUCTION → COMPLETED`:
+- [x] `DRAFT → RESERVED` — run allocation, return auto-proposal to frontend; accept or override
+- [x] Manual override — user replaces proposed LOT(s); logged to D1 as `Manual_Override`
+- [x] `RESERVED → IN_PRODUCTION` — status change, D1 entry
+- [x] Over-usage resolution — delta allocation (same FEFO+FIFO on extra qty), accept or override
+- [x] `IN_PRODUCTION → COMPLETED`:
   - Completion guard: `(Actual_Used_Qty + Damage_Qty) <= Reserved_Qty` on every C2 line
   - Ledger writes per C2 line: WO_ISSUE, ADJ_OUT (if damage > 0), RETURN_TO_STOCK (if remainder > 0)
   - Auto-create FG LOT in B1 (Supplier_LOT_Number = WO_Number, MFG_Date = now, EXP_Date from Shelf_Life_Days)
   - Write WO_RECEIPT to B2 for FG lot
   - Set Completion_Pct = 100.00, zero all C2 Reserved_Qty
   - D1 entry: Status_Change
-- [ ] `* → CANCELLED` — zero C2 Reserved_Qty, D1 entry
-- [ ] `CANCELLED → DRAFT` (reopen) — clear C2, preserve C1.5, D1 entry as `Reopen`
-- [ ] Audit Log read API — `GET /workorders/:id/audit`
+- [x] `* → CANCELLED` — zero C2 Reserved_Qty, D1 entry
+- [x] `CANCELLED → DRAFT` (reopen) — clear C2, preserve C1.5, D1 entry as `Reopen`
+- [x] Audit Log read API — `GET /workorders/:id/audit`
 
 ### Frontend
-- [ ] WO List page — table with status filter, Completion_Pct column for closed WOs
-- [ ] WO Create form — FG Code picker, Target Qty
-- [ ] WO Detail page:
+- [x] WO List page — table with status filter, Completion_Pct column for closed WOs
+- [x] WO Create form — FG Code picker, Target Qty
+- [x] WO Detail page:
   - Header: status badge, action buttons (Reserve, Start, Complete, Cancel)
   - Material requirements table (C1.5) with RED flag on shortage
   - LOT allocation table (C2) — auto-proposal display with LOT swap option per line
   - Actuals input form (Actual_Used_Qty, Damage_Qty per C2 line)
-- [ ] Audit Log tab on WO Detail — full D1 history for the WO
+- [x] Audit Log tab on WO Detail — full D1 history for the WO
 
 **Done when:** A WO can be created, reserved (FEFO+FIFO allocates correctly), moved to IN_PRODUCTION, completed with actuals, ledger shows WO_ISSUE + RETURN_TO_STOCK, and FG stock increases.
 
