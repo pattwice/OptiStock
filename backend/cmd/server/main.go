@@ -12,6 +12,7 @@ import (
 	"optistock/internal/auth"
 	"optistock/internal/config"
 	"optistock/internal/database"
+	"optistock/internal/domain/approval"
 	"optistock/internal/domain/ledger"
 	"optistock/internal/domain/item"
 	"optistock/internal/domain/lot"
@@ -69,8 +70,12 @@ func main() {
 	stockHandler := stock.NewHandler(stockService)
 
 	woRepo := workorder.NewRepository(pool)
-	woService := workorder.NewService(woRepo)
+	approvalRepo := approval.NewRepository(pool)
+	woService := workorder.NewService(woRepo, approvalRepo)
 	woHandler := workorder.NewHandler(woService)
+
+	approvalService := approval.NewService(approvalRepo, woRepo, woService)
+	approvalHandler := approval.NewHandler(approvalService)
 
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
@@ -110,7 +115,15 @@ func main() {
 	stockHandler.RegisterRoutes(stockRoutes)
 
 	woRoutes := protected.Group("/workorders")
+	woRoutes.Get("/:woNumber/approvals", approvalHandler.ListByWO)
 	woHandler.RegisterRoutes(woRoutes)
+
+	approvalRoutes := protected.Group("/approvals", middleware.RequireRole(auth.RoleSupervisor, auth.RoleAdmin))
+	approvalRoutes.Get("/", approvalHandler.ListPending)
+	approvalRoutes.Post("/:approvalID/approve", approvalHandler.Approve)
+	approvalRoutes.Post("/:approvalID/reject", approvalHandler.Reject)
+
+	protected.Post("/approvals/:approvalID/withdraw", approvalHandler.Withdraw)
 
 	go func() {
 		log.Printf("api listening on :%s", cfg.HTTPPort)

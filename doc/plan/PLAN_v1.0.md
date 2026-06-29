@@ -149,24 +149,24 @@
 **Goal:** Partial WO close triggers supervisor sign-off. Full re-appeal and withdrawal cycle works.
 
 ### Migrations
-- [ ] `000012_create_d2_approvals.up.sql` — Table D2
+- [x] `000013_create_d2_approvals.up.sql` — Table D2
 
 ### Backend
-- [ ] Partial completion detection — if `Actual_Produced_Qty < Target_Qty` on complete attempt, redirect to approval flow
-- [ ] `PENDING_APPROVAL` transition — insert D2 row (PENDING), D1 entry `Approval_Request`
-- [ ] `POST /approvals/:id/withdraw` (requester only) — D2 → WITHDRAWN, WO → IN_PRODUCTION, D1 `Approval_Withdrawn`
-- [ ] `POST /approvals/:id/approve` (supervisor) — D2 → APPROVED, execute ledger writes same as COMPLETED, WO → COMPLETED_PARTIAL, D1 `Approval_Resolved`
-- [ ] `POST /approvals/:id/reject` (supervisor, mandatory Resolution_Notes) — D2 → REJECTED, WO → IN_PRODUCTION, D1 `Approval_Resolved`
-- [ ] Re-appeal — new D2 row per re-submission; old rows unchanged
-- [ ] Cancel during PENDING_APPROVAL — auto-withdraw D2 (Resolved_By = system, Resolution_Notes = WO_CANCELLED)
-- [ ] `GET /approvals` — supervisor dashboard: list PENDING requests with WO details
+- [x] Partial completion detection — if `Actual_Produced_Qty < Target_Qty` on complete attempt, redirect to approval flow
+- [x] `PENDING_APPROVAL` transition — insert D2 row (PENDING), D1 entry `Approval_Request`
+- [x] `POST /approvals/:id/withdraw` (requester only) — D2 → WITHDRAWN, WO → IN_PRODUCTION, D1 `Approval_Withdrawn`
+- [x] `POST /approvals/:id/approve` (supervisor) — D2 → APPROVED, execute ledger writes same as COMPLETED, WO → COMPLETED_PARTIAL, D1 `Approval_Resolved`
+- [x] `POST /approvals/:id/reject` (supervisor, mandatory Resolution_Notes) — D2 → REJECTED, WO → IN_PRODUCTION, D1 `Approval_Resolved`
+- [x] Re-appeal — new D2 row per re-submission; old rows unchanged
+- [x] Cancel during PENDING_APPROVAL — auto-withdraw D2 (Resolved_By = system, Resolution_Notes = WO_CANCELLED)
+- [x] `GET /approvals` — supervisor dashboard: list PENDING requests with WO details
 
 ### Frontend
-- [ ] Partial close modal — warning with completion %, confirmation required, "Submit for Approval" button
-- [ ] Withdraw button on WO Detail (visible to requester while PENDING)
-- [ ] Supervisor Approval dashboard — list of PENDING requests, approve/reject with notes input
-- [ ] Re-appeal — "Re-submit" button appears on WO Detail after rejection, opens revised actuals form
-- [ ] Partial Completion Log tab on WO Detail — full D2 history with statuses and notes
+- [x] Partial close modal — warning with completion %, confirmation required, "Submit for Approval" button
+- [x] Withdraw button on WO Detail (visible to requester while PENDING)
+- [x] Supervisor Approval dashboard — list of PENDING requests, approve/reject with notes input
+- [x] Re-appeal — "Re-submit" button appears on WO Detail after rejection, opens revised actuals form
+- [x] Partial Completion Log tab on WO Detail — full D2 history with statuses and notes
 
 **Done when:** A WO at 60% triggers approval request, supervisor approves, ledger writes at 60%, COMPLETED_PARTIAL status saved. Rejection returns to IN_PRODUCTION. Withdrawal dismisses the request. Re-appeal creates a new D2 row.
 

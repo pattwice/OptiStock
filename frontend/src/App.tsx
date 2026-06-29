@@ -13,6 +13,7 @@ import { StockOnHandPage } from './pages/inventory/StockOnHandPage'
 import { WorkOrderCreatePage } from './pages/workorders/WorkOrderCreatePage'
 import { WorkOrderDetailPage } from './pages/workorders/WorkOrderDetailPage'
 import { WorkOrdersPage } from './pages/workorders/WorkOrdersPage'
+import { ApprovalsPage } from './pages/approvals/ApprovalsPage'
 import { refreshSession } from './api/auth'
 import { useAuthStore } from './store/authStore'
 
@@ -67,6 +68,7 @@ export default function App() {
             <Route path="/workorders" element={<WorkOrdersPage />} />
             <Route path="/workorders/new" element={<WorkOrderCreatePage />} />
             <Route path="/workorders/:woNumber" element={<WorkOrderDetailPage />} />
+            <Route path="/approvals" element={<ApprovalsPage />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/login" replace />} />

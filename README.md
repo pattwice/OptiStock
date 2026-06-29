@@ -80,6 +80,6 @@ npm run dev
 - [x] Phase 0 — Foundation
 - [x] Phase 1 — Item & LOT Management
 - [x] Phase 2 — Work Orders
-- [ ] Phase 3 — Approval Flow
+- [x] Phase 3 — Approval Flow
 
 **Browser testing:** see `doc/testing/AGENT_BROWSER_GUIDE.md`

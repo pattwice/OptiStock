@@ -50,6 +50,7 @@ Use these URLs to jump straight to a screen (must be logged in except `/login`).
 | Work Order list | `/workorders` | Production → Work Orders |
 | Create work order | `/workorders/new` | Work Orders → **Create WO** button |
 | Work order detail | `/workorders/{WO_NUMBER}` | Click WO number in list |
+| Approvals (supervisor) | `/approvals` | Production → Approvals |
 
 **Not built yet (sidebar disabled):** Reports, Admin.
 
@@ -71,7 +72,7 @@ Use these URLs to jump straight to a screen (must be logged in except `/login`).
 - **Tables:** Ant Design tables with filters at top, primary actions as buttons.
 - **Forms:** Modal dialogs (Items) or full-page cards (Receiving, Create WO).
 - **Toasts:** Green `message.success` / red `message.error` bottom-right on actions.
-- **WO detail:** Card header + tabs (Requirements, LOT Allocations, Actuals, Audit Log).
+- **WO detail:** Card header + tabs (Requirements, LOT Allocations, Actuals, Partial Completion Log, Audit Log).
 
 ---
 
@@ -182,15 +183,30 @@ After a WO is **RESERVED**, `reserved_qty` should increase and `available_qty` d
 | Start | **Start Production** (RESERVED) | Status `IN_PRODUCTION` |
 | Actuals tab | Enter used/damage per line | Enabled in `IN_PRODUCTION` |
 | Save actuals | **Save Actuals** | Values persist |
-| Complete | **Complete** (full qty only) | Status `COMPLETED`, FG stock increases |
+| Complete | **Complete** (full qty) | Status `COMPLETED`, FG stock increases |
+| Partial close | **Complete** with Actual < Target | Modal → **Submit for Approval** → `PENDING_APPROVAL` |
+| Withdraw | **Withdraw Request** (requester, PENDING) | Back to `IN_PRODUCTION` |
+| Re-submit | **Re-submit for Approval** (after reject/withdraw) | New D2 row, `PENDING_APPROVAL` |
+| Approve | `/approvals` → Approve (supervisor) | `COMPLETED_PARTIAL`, ledger writes at partial % |
+| Reject | `/approvals` → Reject + notes (supervisor) | Back to `IN_PRODUCTION` |
+| Partial log | Partial Completion Log tab | Full D2 history |
 | Cancel | **Cancel** | Status `CANCELLED`, reservations released |
 | Reopen | **Reopen** (CANCELLED) | Status `DRAFT`, allocations cleared |
 | Audit | Audit Log tab | Status changes and actions listed |
 
-**WO status flow (happy path):**  
+**WO status flow (full complete):**  
 `DRAFT` → `RESERVED` → `IN_PRODUCTION` → `COMPLETED`
 
-**Phase 3 not in UI yet:** partial complete (`Actual < Target`) returns approval-required error.
+**WO status flow (partial + approval):**  
+`IN_PRODUCTION` → `PENDING_APPROVAL` → `COMPLETED_PARTIAL` (approve) or `IN_PRODUCTION` (reject/withdraw)
+
+### 6.8 Approvals — `/approvals` (supervisor/admin only)
+
+| Action | How | Expect |
+| :--- | :--- | :--- |
+| List pending | Open page | PENDING requests with WO, FG, completion % |
+| Approve | **Approve** on row | WO → `COMPLETED_PARTIAL`, FG stock at partial qty |
+| Reject | **Reject** + mandatory notes | WO → `IN_PRODUCTION`, requester can re-submit |
 
 ---
 
@@ -241,6 +257,8 @@ Do **not** use PowerShell `curl -d '{...}'` for JSON — it mangles quotes. Use 
 | Inventory CRUD, receiving, adjustments | ✓ | ✓ | ✓ |
 | LOT status change | | ✓ | ✓ |
 | Work orders (full lifecycle) | ✓ | ✓ | ✓ |
+| Partial close / withdraw / re-appeal | ✓ | ✓ | ✓ |
+| Approvals dashboard (approve/reject) | | ✓ | ✓ |
 | Reports / Admin menu | — | — | — |
 
 *Only the seed **admin** account exists by default.*
@@ -255,4 +273,4 @@ Do **not** use PowerShell `curl -d '{...}'` for JSON — it mangles quotes. Use 
 | `doc/plan/PLAN_v1.0.md` | Phase scope — what is / isn't built |
 | `README.md` | Dev startup commands |
 
-**Last updated for:** Phase 0–2 (auth, inventory, work orders). Update this guide when Reports/Admin ship.
+**Last updated for:** Phase 0–3 (auth, inventory, work orders, approval flow). Update when Reports/Admin ship.

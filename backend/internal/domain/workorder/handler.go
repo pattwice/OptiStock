@@ -22,6 +22,7 @@ func (h *Handler) RegisterRoutes(router fiber.Router) {
 	router.Post("/:woNumber/start", h.StartProduction)
 	router.Patch("/:woNumber/actuals", h.UpdateActuals)
 	router.Post("/:woNumber/resolve-overusage", h.ResolveOverUsage)
+	router.Post("/:woNumber/submit-for-approval", h.SubmitForApproval)
 	router.Post("/:woNumber/complete", h.Complete)
 	router.Post("/:woNumber/cancel", h.Cancel)
 	router.Post("/:woNumber/reopen", h.Reopen)
@@ -107,6 +108,19 @@ func (h *Handler) ResolveOverUsage(c *fiber.Ctx) error {
 		return response.Fail(c, err)
 	}
 	wo, err := h.service.ResolveOverUsage(c.Context(), userID, c.Params("woNumber"), input)
+	if err != nil {
+		return response.Fail(c, err)
+	}
+	return response.OK(c, wo)
+}
+
+func (h *Handler) SubmitForApproval(c *fiber.Ctx) error {
+	userID, _ := c.Locals("userID").(string)
+	var input CompleteInput
+	if err := c.BodyParser(&input); err != nil {
+		return response.Fail(c, err)
+	}
+	wo, err := h.service.SubmitForApproval(c.Context(), userID, c.Params("woNumber"), input)
 	if err != nil {
 		return response.Fail(c, err)
 	}

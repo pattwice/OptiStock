@@ -78,6 +78,18 @@ export function completeWorkOrder(
   )
 }
 
+export function submitWorkOrderForApproval(
+  woNumber: string,
+  body: {
+    actual_produced_qty: string
+    lines: Array<{ allocation_id: string; actual_used_qty: string; damage_qty?: string }>
+  },
+) {
+  return unwrap<WorkOrderDetail>(
+    apiClient.post(`/workorders/${encodeURIComponent(woNumber)}/submit-for-approval`, body),
+  )
+}
+
 export function cancelWorkOrder(woNumber: string) {
   return unwrap<WorkOrderDetail>(
     apiClient.post(`/workorders/${encodeURIComponent(woNumber)}/cancel`),

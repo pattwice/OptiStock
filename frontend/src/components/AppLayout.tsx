@@ -11,48 +11,23 @@ import {
 } from '@ant-design/icons'
 import { Layout, Menu, Button, Typography, Space, Badge } from 'antd'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { useMemo } from 'react'
 import { logout } from '../api/auth'
 import { useAuthStore } from '../store/authStore'
 
 const { Header, Sider, Content } = Layout
 
-const menuItems = [
-  { key: '/', icon: <AppstoreOutlined />, label: <Link to="/">Dashboard</Link> },
-  {
-    key: 'inventory',
-    icon: <ShoppingOutlined />,
-    label: 'Inventory',
-    children: [
-      { key: '/inventory/items', label: <Link to="/inventory/items">Items</Link> },
-      { key: '/inventory/bom', label: <Link to="/inventory/bom">BOM</Link> },
-      { key: '/inventory/lots', label: <Link to="/inventory/lots">LOTs</Link> },
-      { key: '/inventory/receiving', icon: <InboxOutlined />, label: <Link to="/inventory/receiving">Receiving</Link> },
-      { key: '/inventory/adjustments', icon: <SwapOutlined />, label: <Link to="/inventory/adjustments">Adjustments</Link> },
-      { key: '/inventory/stock', icon: <DatabaseOutlined />, label: <Link to="/inventory/stock">Stock On Hand</Link> },
-    ],
-  },
-  {
-    key: 'workorders',
-    icon: <FileTextOutlined />,
-    label: 'Production',
-    children: [
-      { key: '/workorders', label: <Link to="/workorders">Work Orders</Link> },
-    ],
-  },
-  { key: '/reports', icon: <FileTextOutlined />, label: 'Reports', disabled: true },
-  { key: '/admin', icon: <SettingOutlined />, label: 'Admin', disabled: true },
-]
-
 function selectedKeys(pathname: string): string[] {
   if (pathname === '/') return ['/']
   if (pathname.startsWith('/inventory')) return [pathname]
   if (pathname.startsWith('/workorders')) return [pathname === '/workorders/new' ? '/workorders' : pathname]
+  if (pathname.startsWith('/approvals')) return ['/approvals']
   return [pathname]
 }
 
 function openKeys(pathname: string): string[] {
   if (pathname.startsWith('/inventory')) return ['inventory']
-  if (pathname.startsWith('/workorders')) return ['workorders']
+  if (pathname.startsWith('/workorders') || pathname.startsWith('/approvals')) return ['workorders']
   return []
 }
 
@@ -61,6 +36,39 @@ export function AppLayout() {
   const navigate = useNavigate()
   const user = useAuthStore((state) => state.user)
   const clearSession = useAuthStore((state) => state.clearSession)
+
+  const navItems = useMemo(() => {
+    const items = [
+      { key: '/', icon: <AppstoreOutlined />, label: <Link to="/">Dashboard</Link> },
+      {
+        key: 'inventory',
+        icon: <ShoppingOutlined />,
+        label: 'Inventory',
+        children: [
+          { key: '/inventory/items', label: <Link to="/inventory/items">Items</Link> },
+          { key: '/inventory/bom', label: <Link to="/inventory/bom">BOM</Link> },
+          { key: '/inventory/lots', label: <Link to="/inventory/lots">LOTs</Link> },
+          { key: '/inventory/receiving', icon: <InboxOutlined />, label: <Link to="/inventory/receiving">Receiving</Link> },
+          { key: '/inventory/adjustments', icon: <SwapOutlined />, label: <Link to="/inventory/adjustments">Adjustments</Link> },
+          { key: '/inventory/stock', icon: <DatabaseOutlined />, label: <Link to="/inventory/stock">Stock On Hand</Link> },
+        ],
+      },
+      {
+        key: 'workorders',
+        icon: <FileTextOutlined />,
+        label: 'Production',
+        children: [
+          { key: '/workorders', label: <Link to="/workorders">Work Orders</Link> },
+          ...(user?.role === 'supervisor' || user?.role === 'admin'
+            ? [{ key: '/approvals', label: <Link to="/approvals">Approvals</Link> }]
+            : []),
+        ],
+      },
+      { key: '/reports', icon: <FileTextOutlined />, label: 'Reports', disabled: true },
+      { key: '/admin', icon: <SettingOutlined />, label: 'Admin', disabled: true },
+    ]
+    return items
+  }, [user?.role])
 
   const handleLogout = async () => {
     try {
@@ -80,7 +88,7 @@ export function AppLayout() {
           mode="inline"
           selectedKeys={selectedKeys(location.pathname)}
           defaultOpenKeys={openKeys(location.pathname)}
-          items={menuItems}
+          items={navItems}
         />
       </Sider>
       <Layout>

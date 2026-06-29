@@ -15,6 +15,7 @@ import {
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useNavigate, useParams } from 'react-router-dom'
+import { listWorkOrderApprovals, withdrawApproval } from '../../api/approval'
 import {
   cancelWorkOrder,
   completeWorkOrder,
@@ -24,9 +25,13 @@ import {
   reopenWorkOrder,
   reserveWorkOrder,
   startWorkOrder,
+  submitWorkOrderForApproval,
   updateWorkOrderActuals,
 } from '../../api/workorder'
+import { APPROVAL_STATUS_COLORS } from '../../constants/approval'
 import { WO_STATUS_COLORS } from '../../constants/workorder'
+import { useAuthStore } from '../../store/authStore'
+import type { ApprovalRequest } from '../../types/approval'
 import type {
   AuditEntry,
   WOAllocation,
@@ -35,11 +40,27 @@ import type {
   WorkOrderDetail,
 } from '../../types/workorder'
 
+function buildCompletionBody(values: {
+  actual_produced_qty: number
+  lines: Array<{ allocation_id: string; actual_used_qty: number; damage_qty?: number }>
+}) {
+  return {
+    actual_produced_qty: String(values.actual_produced_qty),
+    lines: values.lines.map((l) => ({
+      allocation_id: l.allocation_id,
+      actual_used_qty: String(l.actual_used_qty),
+      damage_qty: l.damage_qty != null ? String(l.damage_qty) : undefined,
+    })),
+  }
+}
+
 export function WorkOrderDetailPage() {
   const { woNumber = '' } = useParams()
   const navigate = useNavigate()
+  const user = useAuthStore((s) => s.user)
   const [detail, setDetail] = useState<WorkOrderDetail | null>(null)
   const [audit, setAudit] = useState<AuditEntry[]>([])
+  const [approvals, setApprovals] = useState<ApprovalRequest[]>([])
   const [loading, setLoading] = useState(false)
   const [actualsForm] = Form.useForm()
 
@@ -47,12 +68,14 @@ export function WorkOrderDetailPage() {
     if (!woNumber) return
     setLoading(true)
     try {
-      const [wo, log] = await Promise.all([
+      const [wo, log, approvalLog] = await Promise.all([
         getWorkOrder(woNumber),
         getWorkOrderAudit(woNumber),
+        listWorkOrderApprovals(woNumber),
       ])
       setDetail(wo)
       setAudit(log)
+      setApprovals(approvalLog)
       actualsForm.setFieldsValue({
         actual_produced_qty: wo.work_order.actual_produced_qty ?? wo.work_order.target_qty,
         lines: wo.allocations.map((a) => ({
@@ -74,6 +97,17 @@ export function WorkOrderDetailPage() {
 
   const wo = detail?.work_order
   const status = wo?.wo_status
+
+  const pendingApproval = useMemo(
+    () => approvals.find((a) => a.approval_status === 'PENDING'),
+    [approvals],
+  )
+
+  const canResubmit = useMemo(() => {
+    if (status !== 'IN_PRODUCTION' || approvals.length === 0) return false
+    const last = approvals[approvals.length - 1]
+    return last.approval_status === 'REJECTED' || last.approval_status === 'WITHDRAWN'
+  }, [approvals, status])
 
   const reqColumns: ColumnsType<WORequirement> = [
     { title: 'Item', dataIndex: 'required_item_code' },
@@ -101,6 +135,29 @@ export function WorkOrderDetailPage() {
     { title: 'Action', dataIndex: 'action' },
     { title: 'Old', dataIndex: 'old_value', render: (v) => v ?? '—' },
     { title: 'New', dataIndex: 'new_value', render: (v) => v ?? '—' },
+  ]
+
+  const approvalColumns: ColumnsType<ApprovalRequest> = [
+    {
+      title: 'Requested',
+      dataIndex: 'requested_at',
+      render: (v: string) => new Date(v).toLocaleString(),
+    },
+    { title: 'Requester', dataIndex: 'requested_by_name' },
+    {
+      title: 'Completion %',
+      dataIndex: 'completion_pct_at_request',
+      render: (v: string) => `${v}%`,
+    },
+    {
+      title: 'Status',
+      dataIndex: 'approval_status',
+      render: (v: ApprovalRequest['approval_status']) => (
+        <Tag color={APPROVAL_STATUS_COLORS[v]}>{v}</Tag>
+      ),
+    },
+    { title: 'Resolved By', dataIndex: 'resolved_by_name', render: (v) => v ?? '—' },
+    { title: 'Notes', dataIndex: 'resolution_notes', render: (v) => v ?? '—' },
   ]
 
   const handleReserve = async () => {
@@ -133,14 +190,7 @@ export function WorkOrderDetailPage() {
   const handleSaveActuals = async () => {
     const values = await actualsForm.validateFields()
     try {
-      await updateWorkOrderActuals(woNumber, {
-        actual_produced_qty: String(values.actual_produced_qty),
-        lines: values.lines.map((l: { allocation_id: string; actual_used_qty: number; damage_qty?: number }) => ({
-          allocation_id: l.allocation_id,
-          actual_used_qty: String(l.actual_used_qty),
-          damage_qty: l.damage_qty != null ? String(l.damage_qty) : undefined,
-        })),
-      })
+      await updateWorkOrderActuals(woNumber, buildCompletionBody(values))
       message.success('Actuals saved')
       void load()
     } catch {
@@ -148,25 +198,70 @@ export function WorkOrderDetailPage() {
     }
   }
 
-  const handleComplete = async () => {
+  const submitPartialForApproval = async () => {
     const values = await actualsForm.validateFields()
+    const target = Number(wo?.target_qty ?? 0)
+    const actual = Number(values.actual_produced_qty)
+    const pct = target > 0 ? ((actual / target) * 100).toFixed(2) : '0'
+
     Modal.confirm({
-      title: 'Complete work order?',
-      content: 'Ledger writes are permanent. Full completion only (partial close is Phase 3).',
+      title: 'Submit partial completion for approval?',
+      content: (
+        <Typography.Paragraph>
+          You are closing this WO at <strong>{pct}%</strong> completion (Produced: {actual} / Target:{' '}
+          {target}). Supervisor approval is required. You may withdraw before a decision is made.
+        </Typography.Paragraph>
+      ),
+      okText: 'Submit for Approval',
       onOk: async () => {
         try {
-          await completeWorkOrder(woNumber, {
-            actual_produced_qty: String(values.actual_produced_qty),
-            lines: values.lines.map((l: { allocation_id: string; actual_used_qty: number; damage_qty?: number }) => ({
-              allocation_id: l.allocation_id,
-              actual_used_qty: String(l.actual_used_qty),
-              damage_qty: l.damage_qty != null ? String(l.damage_qty) : undefined,
-            })),
-          })
+          await submitWorkOrderForApproval(woNumber, buildCompletionBody(values))
+          message.success('Submitted for supervisor approval')
+          void load()
+        } catch {
+          message.error('Failed to submit for approval')
+        }
+      },
+    })
+  }
+
+  const handleComplete = async () => {
+    const values = await actualsForm.validateFields()
+    const target = Number(wo?.target_qty ?? 0)
+    const actual = Number(values.actual_produced_qty)
+
+    if (actual < target) {
+      await submitPartialForApproval()
+      return
+    }
+
+    Modal.confirm({
+      title: 'Complete work order?',
+      content: 'Ledger writes are permanent. This will fully complete the work order.',
+      onOk: async () => {
+        try {
+          await completeWorkOrder(woNumber, buildCompletionBody(values))
           message.success('Work order completed')
           void load()
         } catch {
           message.error('Completion failed — check actuals and stock')
+        }
+      },
+    })
+  }
+
+  const handleWithdraw = async () => {
+    if (!pendingApproval) return
+    Modal.confirm({
+      title: 'Withdraw approval request?',
+      content: 'The work order will return to IN_PRODUCTION with reservations unchanged.',
+      onOk: async () => {
+        try {
+          await withdrawApproval(pendingApproval.approval_id)
+          message.success('Approval request withdrawn')
+          void load()
+        } catch {
+          message.error('Failed to withdraw request')
         }
       },
     })
@@ -223,6 +318,30 @@ export function WorkOrderDetailPage() {
         <Button key="complete" type="primary" onClick={() => void handleComplete()}>
           Complete
         </Button>,
+      )
+      if (canResubmit) {
+        buttons.push(
+          <Button key="resubmit" onClick={() => void submitPartialForApproval()}>
+            Re-submit for Approval
+          </Button>,
+        )
+      }
+      buttons.push(
+        <Button key="cancel" danger onClick={() => void handleCancel()}>
+          Cancel
+        </Button>,
+      )
+    }
+    if (status === 'PENDING_APPROVAL') {
+      const isRequester = pendingApproval && user?.id === pendingApproval.requested_by
+      if (isRequester) {
+        buttons.push(
+          <Button key="withdraw" onClick={() => void handleWithdraw()}>
+            Withdraw Request
+          </Button>,
+        )
+      }
+      buttons.push(
         <Button key="cancel" danger onClick={() => void handleCancel()}>
           Cancel
         </Button>,
@@ -236,11 +355,13 @@ export function WorkOrderDetailPage() {
       )
     }
     return buttons
-  }, [status])
+  }, [canResubmit, pendingApproval, status, user?.id])
 
   if (!wo) {
     return <Typography.Text>Loading…</Typography.Text>
   }
+
+  const actualsEditable = status === 'IN_PRODUCTION'
 
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
@@ -255,6 +376,7 @@ export function WorkOrderDetailPage() {
         <Descriptions column={2}>
           <Descriptions.Item label="FG Code">{wo.target_fg_code}</Descriptions.Item>
           <Descriptions.Item label="Target Qty">{wo.target_qty}</Descriptions.Item>
+          <Descriptions.Item label="Actual Produced">{wo.actual_produced_qty ?? '—'}</Descriptions.Item>
           <Descriptions.Item label="Status">
             <Tag color={WO_STATUS_COLORS[wo.wo_status as WOStatus]}>{wo.wo_status}</Tag>
           </Descriptions.Item>
@@ -292,11 +414,11 @@ export function WorkOrderDetailPage() {
           {
             key: 'actuals',
             label: 'Actuals',
-            disabled: status !== 'IN_PRODUCTION',
+            disabled: !actualsEditable && status !== 'PENDING_APPROVAL',
             children: (
               <Form form={actualsForm} layout="vertical">
                 <Form.Item name="actual_produced_qty" label="Actual Produced Qty" rules={[{ required: true }]}>
-                  <InputNumber min={0} style={{ width: 200 }} />
+                  <InputNumber min={0} style={{ width: 200 }} disabled={!actualsEditable} />
                 </Form.Item>
                 <Form.List name="lines">
                   {(fields) => (
@@ -325,7 +447,7 @@ export function WorkOrderDetailPage() {
                                 <input type="hidden" />
                               </Form.Item>
                               <Form.Item name={[row.index, 'actual_used_qty']} noStyle rules={[{ required: true }]}>
-                                <InputNumber min={0} style={{ width: 120 }} />
+                                <InputNumber min={0} style={{ width: 120 }} disabled={!actualsEditable} />
                               </Form.Item>
                             </>
                           ),
@@ -334,7 +456,7 @@ export function WorkOrderDetailPage() {
                           title: 'Damage',
                           render: (_, row) => (
                             <Form.Item name={[row.index, 'damage_qty']} noStyle>
-                              <InputNumber min={0} style={{ width: 120 }} />
+                              <InputNumber min={0} style={{ width: 120 }} disabled={!actualsEditable} />
                             </Form.Item>
                           ),
                         },
@@ -344,6 +466,11 @@ export function WorkOrderDetailPage() {
                 </Form.List>
               </Form>
             ),
+          },
+          {
+            key: 'approvals',
+            label: 'Partial Completion Log',
+            children: <Table rowKey="approval_id" columns={approvalColumns} dataSource={approvals} />,
           },
           {
             key: 'audit',

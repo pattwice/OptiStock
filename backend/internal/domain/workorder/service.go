@@ -2,21 +2,26 @@ package workorder
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 	"strings"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 	"optistock/pkg/apperror"
 )
 
 type Service struct {
-	repo *Repository
+	repo         *Repository
+	approvalRepo ApprovalRepository
 }
 
-func NewService(repo *Repository) *Service {
-	return &Service{repo: repo}
+type ApprovalRepository interface {
+	InsertPending(ctx context.Context, tx pgx.Tx, woNumber, userID, completionPct string) (string, error)
+	WithdrawPendingForWO(ctx context.Context, tx pgx.Tx, woNumber string, resolvedBy *string, notes string) error
+	HasPendingForWO(ctx context.Context, tx pgx.Tx, woNumber string) (bool, error)
+}
+
+func NewService(repo *Repository, approvalRepo ApprovalRepository) *Service {
+	return &Service{repo: repo, approvalRepo: approvalRepo}
 }
 
 func (s *Service) Create(ctx context.Context, userID string, input CreateWOInput) (*WorkOrderDetail, error) {
@@ -346,134 +351,87 @@ func (s *Service) Complete(ctx context.Context, userID, woNumber string, input C
 	}
 
 	if cmp, ok := cmpRat(actualProduced, wo.TargetQty); ok && cmp < 0 {
-		return nil, apperror.WithDetails(apperror.ErrApprovalRequired, map[string]string{
-			"message": "partial completion requires supervisor approval (Phase 3)",
-		})
+		return nil, apperror.WithMessage(apperror.ErrValidation, "partial completion requires submit-for-approval")
 	}
 	if cmp, ok := cmpRat(actualProduced, wo.TargetQty); ok && cmp > 0 {
 		return nil, apperror.WithMessage(apperror.ErrValidation, "actual_produced_qty cannot exceed target_qty")
 	}
 
-	for _, line := range input.Lines {
-		damage := line.DamageQty
-		if damage != nil && isZeroOrEmpty(*damage) {
-			zero := "0"
-			damage = &zero
-		}
-		if damage == nil {
-			zero := "0"
-			damage = &zero
-		}
-		if err := s.repo.UpdateActuals(ctx, tx, line.AllocationID, line.ActualUsedQty, damage); err != nil {
-			return nil, err
-		}
-	}
-
-	allocs, err := s.repo.ListAllocationsTx(ctx, tx, woNumber)
+	allocs, err := s.persistCompletionActuals(ctx, tx, woNumber, input)
 	if err != nil {
 		return nil, err
 	}
-	for _, a := range allocs {
-		used := "0"
-		if a.ActualUsedQty != nil {
-			used = *a.ActualUsedQty
-		}
-		dmg := "0"
-		if a.DamageQty != nil {
-			dmg = *a.DamageQty
-		}
-		sum, ok := addRat(used, dmg)
-		if !ok {
-			return nil, apperror.ErrInternal
-		}
-		if cmp, ok := cmpRat(sum, a.ReservedQty); ok && cmp > 0 {
-			return nil, apperror.ErrCompletionGuardFailed
-		}
+	if err := s.executeCompletionLedger(ctx, tx, userID, wo, actualProduced, allocs); err != nil {
+		return nil, err
+	}
+	if err := s.finalizeCompletion(ctx, tx, userID, woNumber, wo, actualProduced, "100.00", StatusCompleted, "Status_Change"); err != nil {
+		return nil, err
 	}
 
-	docRef := fmt.Sprintf("WO:%s", woNumber)
-	const damageReason = "PRODUCTION_DAMAGE"
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+	return s.Get(ctx, woNumber)
+}
 
-	for _, a := range allocs {
-		used := "0"
-		if a.ActualUsedQty != nil {
-			used = *a.ActualUsedQty
-		}
-		dmg := "0"
-		if a.DamageQty != nil {
-			dmg = *a.DamageQty
-		}
-
-		if isPositive(used) {
-			qty, ok := negateQty(used)
-			if !ok {
-				return nil, apperror.ErrValidation
-			}
-			if err := s.applyNegativeStockGuard(ctx, tx, a.LOTInternalID, qty); err != nil {
-				return nil, err
-			}
-			if err := s.repo.InsertLedger(ctx, tx, userID, "WO_ISSUE", a.LOTInternalID, qty, docRef, nil); err != nil {
-				return nil, err
-			}
-		}
-
-		if isPositive(dmg) {
-			qty, ok := negateQty(dmg)
-			if !ok {
-				return nil, apperror.ErrValidation
-			}
-			if err := s.applyNegativeStockGuard(ctx, tx, a.LOTInternalID, qty); err != nil {
-				return nil, err
-			}
-			reason := damageReason
-			if err := s.repo.InsertLedger(ctx, tx, userID, "ADJ_OUT", a.LOTInternalID, qty, docRef, &reason); err != nil {
-				return nil, err
-			}
-		}
-
-		remainder, ok := subRat(a.ReservedQty, used)
-		if !ok {
-			return nil, apperror.ErrInternal
-		}
-		remainder, ok = subRat(remainder, dmg)
-		if !ok {
-			return nil, apperror.ErrInternal
-		}
-		if isPositive(remainder) {
-			if err := s.repo.InsertLedger(ctx, tx, userID, "RETURN_TO_STOCK", a.LOTInternalID, remainder, docRef, nil); err != nil {
-				return nil, err
-			}
-		}
+func (s *Service) SubmitForApproval(ctx context.Context, userID, woNumber string, input CompleteInput) (*WorkOrderDetail, error) {
+	if userID == "" {
+		return nil, apperror.ErrUnauthorized
+	}
+	actualProduced := strings.TrimSpace(input.ActualProducedQty)
+	if actualProduced == "" {
+		return nil, apperror.WithMessage(apperror.ErrValidation, "actual_produced_qty is required")
 	}
 
-	mfgDate := time.Now().UTC().Format("2006-01-02")
-	var expDate *string
-	if shelf, err := s.repo.GetItemShelfLife(ctx, wo.TargetFGCode); err == nil && shelf != nil {
-		t, _ := time.Parse("2006-01-02", mfgDate)
-		exp := t.AddDate(0, 0, *shelf).Format("2006-01-02")
-		expDate = &exp
-	}
-
-	fgLotID, err := s.repo.CreateFGLot(ctx, tx, wo.TargetFGCode, woNumber, mfgDate, expDate)
+	tx, err := s.repo.pool.Begin(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if err := s.repo.InsertLedger(ctx, tx, userID, "WO_RECEIPT", fgLotID, actualProduced, docRef, nil); err != nil {
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	wo, err := s.repo.GetHeaderForUpdate(ctx, tx, woNumber)
+	if err != nil {
+		return nil, err
+	}
+	if wo == nil {
+		return nil, apperror.ErrNotFound
+	}
+	if wo.WOStatus != StatusInProduction {
+		return nil, apperror.WithMessage(apperror.ErrWOStatusInvalid, "only IN_PRODUCTION work orders can submit for approval")
+	}
+
+	if cmp, ok := cmpRat(actualProduced, "0"); ok && cmp <= 0 {
+		return nil, apperror.WithMessage(apperror.ErrValidation, "actual_produced_qty must be positive")
+	}
+	if cmp, ok := cmpRat(actualProduced, wo.TargetQty); ok && cmp >= 0 {
+		return nil, apperror.WithMessage(apperror.ErrValidation, "use complete for full target quantity")
+	}
+
+	if _, err := s.persistCompletionActuals(ctx, tx, woNumber, input); err != nil {
 		return nil, err
 	}
 
-	if err := s.repo.UpdateHeaderActuals(ctx, tx, woNumber, actualProduced, "100.00"); err != nil {
+	pct, ok := mulRat(actualProduced, "100")
+	if !ok {
+		return nil, apperror.WithMessage(apperror.ErrValidation, "invalid actual_produced_qty")
+	}
+	pct, ok = divRat(pct, wo.TargetQty)
+	if !ok {
+		return nil, apperror.ErrInternal
+	}
+	if err := s.repo.UpdateHeaderActuals(ctx, tx, woNumber, actualProduced, pct); err != nil {
 		return nil, err
 	}
-	if err := s.repo.ZeroReservations(ctx, tx, woNumber); err != nil {
+
+	if _, err := s.approvalRepo.InsertPending(ctx, tx, woNumber, userID, pct); err != nil {
 		return nil, err
 	}
 
 	oldStatus := wo.WOStatus
-	if err := s.repo.UpdateStatus(ctx, tx, woNumber, StatusCompleted); err != nil {
+	if err := s.repo.UpdateStatus(ctx, tx, woNumber, StatusPendingApproval); err != nil {
 		return nil, err
 	}
-	if err := s.repo.InsertAudit(ctx, tx, woNumber, userID, "Status_Change", string(oldStatus), string(StatusCompleted)); err != nil {
+	if err := s.repo.InsertAudit(ctx, tx, woNumber, userID, "Approval_Request", string(oldStatus), string(StatusPendingApproval)); err != nil {
 		return nil, err
 	}
 
@@ -502,9 +460,15 @@ func (s *Service) Cancel(ctx context.Context, userID, woNumber string) (*WorkOrd
 		return nil, apperror.ErrNotFound
 	}
 	switch wo.WOStatus {
-	case StatusDraft, StatusReserved, StatusInProduction:
+	case StatusDraft, StatusReserved, StatusInProduction, StatusPendingApproval:
 	default:
 		return nil, apperror.WithMessage(apperror.ErrWOStatusInvalid, "work order cannot be cancelled from current status")
+	}
+
+	if wo.WOStatus == StatusPendingApproval {
+		if err := s.approvalRepo.WithdrawPendingForWO(ctx, tx, woNumber, nil, "WO_CANCELLED"); err != nil {
+			return nil, err
+		}
 	}
 
 	if err := s.repo.ZeroReservations(ctx, tx, woNumber); err != nil {

@@ -17,6 +17,10 @@ func NewRepository(pool *pgxpool.Pool) *Repository {
 	return &Repository{pool: pool}
 }
 
+func (r *Repository) Pool() *pgxpool.Pool {
+	return r.pool
+}
+
 func (r *Repository) CreateHeader(ctx context.Context, tx pgx.Tx, input CreateWOInput) (*WorkOrder, error) {
 	row := tx.QueryRow(ctx, `
 		INSERT INTO c1_wo_header (wo_number, target_fg_code, target_qty, wo_status)
