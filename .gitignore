@@ -14,8 +14,6 @@ backend/keys/
 
 # IDE & OS
 .cursor/*
-!.cursor/rules/
-!.cursor/rules/**
 .idea/
 .vscode/
 *.swp
