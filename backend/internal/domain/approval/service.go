@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"optistock/internal/domain/alert"
 	"optistock/internal/domain/workorder"
 	"optistock/pkg/apperror"
 )
@@ -12,10 +13,11 @@ type Service struct {
 	repo   *Repository
 	woRepo *workorder.Repository
 	woSvc  *workorder.Service
+	alerts alert.Notifier
 }
 
-func NewService(repo *Repository, woRepo *workorder.Repository, woSvc *workorder.Service) *Service {
-	return &Service{repo: repo, woRepo: woRepo, woSvc: woSvc}
+func NewService(repo *Repository, woRepo *workorder.Repository, woSvc *workorder.Service, alerts alert.Notifier) *Service {
+	return &Service{repo: repo, woRepo: woRepo, woSvc: woSvc, alerts: alerts}
 }
 
 func (s *Service) ListPending(ctx context.Context) ([]Approval, error) {
@@ -83,6 +85,9 @@ func (s *Service) Withdraw(ctx context.Context, userID, approvalID string) (*App
 	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
+	if s.alerts != nil {
+		s.alerts.OnApprovalWithdrawn(ctx, approval.WONumber, approval.TargetFGCode, approval.CompletionPctAtRequest, approval.RequestedByName)
+	}
 	return s.repo.GetByID(ctx, approvalID)
 }
 
@@ -123,6 +128,7 @@ func (s *Service) Approve(ctx context.Context, supervisorID, approvalID string, 
 	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
+	s.woSvc.EmitPostCompletionAlerts(ctx, approval.WONumber)
 	return s.repo.GetByID(ctx, approvalID)
 }
 

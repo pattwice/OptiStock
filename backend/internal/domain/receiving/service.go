@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5"
+	"optistock/internal/domain/alert"
 	"optistock/pkg/apperror"
 )
 
@@ -16,10 +17,11 @@ type Service struct {
 	pool interface {
 		Begin(context.Context) (pgx.Tx, error)
 	}
+	alerts alert.Notifier
 }
 
-func NewService(repo *Repository) *Service {
-	return &Service{repo: repo, pool: repo.pool}
+func NewService(repo *Repository, alerts alert.Notifier) *Service {
+	return &Service{repo: repo, pool: repo.pool, alerts: alerts}
 }
 
 func (s *Service) POReceipt(ctx context.Context, userID string, input POReceiptInput) (*POReceiptResult, error) {
@@ -69,6 +71,10 @@ func (s *Service) POReceipt(ctx context.Context, userID string, input POReceiptI
 	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
+	if s.alerts != nil {
+		s.alerts.AfterLedgerWrite(ctx, input.ItemCode)
+		s.alerts.AfterLotChange(ctx, ensure.LotInternalID)
+	}
 	return &POReceiptResult{LotInternalID: ensure.LotInternalID, ItemCode: input.ItemCode, Posted: posted}, nil
 }
 
@@ -115,7 +121,13 @@ func (s *Service) Adjustment(ctx context.Context, userID string, input Adjustmen
 		return err
 	}
 
-	return tx.Commit(ctx)
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+	if s.alerts != nil {
+		s.alerts.AfterLotLedgerWrite(ctx, input.LotInternalID)
+	}
+	return nil
 }
 
 func (s *Service) applyNegativeStockGuard(ctx context.Context, tx pgx.Tx, lotInternalID string, qtyChanged string) error {

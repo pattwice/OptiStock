@@ -9,17 +9,21 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/contrib/websocket"
 	"optistock/internal/auth"
 	"optistock/internal/config"
 	"optistock/internal/database"
+	"optistock/internal/domain/alert"
 	"optistock/internal/domain/approval"
-	"optistock/internal/domain/ledger"
 	"optistock/internal/domain/item"
+	"optistock/internal/domain/ledger"
 	"optistock/internal/domain/lot"
 	"optistock/internal/domain/receiving"
+	"optistock/internal/domain/report"
 	"optistock/internal/domain/stock"
 	"optistock/internal/domain/workorder"
 	"optistock/internal/middleware"
+	"optistock/internal/ws"
 	"optistock/pkg/response"
 )
 
@@ -29,7 +33,9 @@ func main() {
 		log.Fatalf("load config: %v", err)
 	}
 
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	if err := database.RunMigrations(cfg.DatabaseURL, cfg.MigrationsPath); err != nil {
 		log.Fatalf("run migrations: %v", err)
 	}
@@ -45,6 +51,11 @@ func main() {
 		log.Fatalf("init token manager: %v", err)
 	}
 
+	hub := ws.NewHub()
+	alertRepo := alert.NewRepository(pool)
+	alertService := alert.NewService(alertRepo, hub)
+	alertService.StartNearExpiryScheduler(ctx)
+
 	authRepo := auth.NewRepository(pool)
 	authService := auth.NewService(authRepo, tokenManager, cfg)
 	authHandler := auth.NewHandler(authService, cfg.AppEnv)
@@ -54,7 +65,7 @@ func main() {
 	itemHandler := item.NewHandler(itemService)
 
 	lotRepo := lot.NewRepository(pool)
-	lotService := lot.NewService(lotRepo)
+	lotService := lot.NewService(lotRepo, alertService)
 	lotHandler := lot.NewHandler(lotService)
 
 	ledgerRepo := ledger.NewRepository(pool)
@@ -62,7 +73,7 @@ func main() {
 	ledgerHandler := ledger.NewHandler(ledgerService)
 
 	receivingRepo := receiving.NewRepository(pool)
-	receivingService := receiving.NewService(receivingRepo)
+	receivingService := receiving.NewService(receivingRepo, alertService)
 	receivingHandler := receiving.NewHandler(receivingService)
 
 	stockRepo := stock.NewRepository(pool)
@@ -71,11 +82,15 @@ func main() {
 
 	woRepo := workorder.NewRepository(pool)
 	approvalRepo := approval.NewRepository(pool)
-	woService := workorder.NewService(woRepo, approvalRepo)
-	woHandler := workorder.NewHandler(woService)
+	woService := workorder.NewService(woRepo, approvalRepo, alertService)
+	woHandler := workorder.NewHandler(woService, alertService)
 
-	approvalService := approval.NewService(approvalRepo, woRepo, woService)
+	approvalService := approval.NewService(approvalRepo, woRepo, woService, alertService)
 	approvalHandler := approval.NewHandler(approvalService)
+
+	reportRepo := report.NewRepository(pool)
+	reportService := report.NewService(reportRepo)
+	reportHandler := report.NewHandler(reportService)
 
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
@@ -90,6 +105,14 @@ func main() {
 	authRoutes := api.Group("/auth")
 	authHandler.RegisterRoutes(authRoutes)
 
+	api.Use("/ws", func(c *fiber.Ctx) error {
+		if websocket.IsWebSocketUpgrade(c) {
+			return c.Next()
+		}
+		return fiber.ErrUpgradeRequired
+	})
+	api.Get("/ws", ws.Handler(tokenManager, hub))
+
 	protected := api.Group("", middleware.JWTAuth(tokenManager))
 	protected.Get("/me", authHandler.Me)
 
@@ -99,7 +122,6 @@ func main() {
 	itemHandler.RegisterBOMRoutes(bomRoutes)
 
 	lotsRoutes := protected.Group("/lots")
-	// LOT status transitions are role-gated at the route level.
 	lotsRoutes.Patch("/:lotInternalID/status", middleware.RequireRole(auth.RoleSupervisor, auth.RoleAdmin), lotHandler.UpdateLotStatus)
 	lotsRoutes.Get("/", lotHandler.ListLots)
 	lotsRoutes.Post("/", lotHandler.CreateLot)
@@ -125,6 +147,9 @@ func main() {
 
 	protected.Post("/approvals/:approvalID/withdraw", approvalHandler.Withdraw)
 
+	reportRoutes := protected.Group("/reports")
+	reportHandler.RegisterRoutes(reportRoutes)
+
 	go func() {
 		log.Printf("api listening on :%s", cfg.HTTPPort)
 		if err := app.Listen(":" + cfg.HTTPPort); err != nil {
@@ -135,9 +160,10 @@ func main() {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 	<-stop
+	cancel()
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer shutdownCancel()
 	if err := app.ShutdownWithContext(shutdownCtx); err != nil {
 		log.Printf("shutdown: %v", err)
 	}

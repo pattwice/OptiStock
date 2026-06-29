@@ -14,6 +14,7 @@ import { WorkOrderCreatePage } from './pages/workorders/WorkOrderCreatePage'
 import { WorkOrderDetailPage } from './pages/workorders/WorkOrderDetailPage'
 import { WorkOrdersPage } from './pages/workorders/WorkOrdersPage'
 import { ApprovalsPage } from './pages/approvals/ApprovalsPage'
+import { ReportsPage } from './pages/reports/ReportsPage'
 import { refreshSession } from './api/auth'
 import { useAuthStore } from './store/authStore'
 
@@ -69,6 +70,7 @@ export default function App() {
             <Route path="/workorders/new" element={<WorkOrderCreatePage />} />
             <Route path="/workorders/:woNumber" element={<WorkOrderDetailPage />} />
             <Route path="/approvals" element={<ApprovalsPage />} />
+            <Route path="/reports" element={<ReportsPage />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/login" replace />} />

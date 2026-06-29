@@ -1,16 +1,21 @@
 package workorder
 
 import (
+	"errors"
+
 	"github.com/gofiber/fiber/v2"
+	"optistock/internal/domain/alert"
+	"optistock/pkg/apperror"
 	"optistock/pkg/response"
 )
 
 type Handler struct {
 	service *Service
+	alerts  alert.Notifier
 }
 
-func NewHandler(service *Service) *Handler {
-	return &Handler{service: service}
+func NewHandler(service *Service, alerts alert.Notifier) *Handler {
+	return &Handler{service: service, alerts: alerts}
 }
 
 func (h *Handler) RegisterRoutes(router fiber.Router) {
@@ -74,6 +79,10 @@ func (h *Handler) Reserve(c *fiber.Ctx) error {
 	}
 	wo, err := h.service.Reserve(c.Context(), userID, c.Params("woNumber"), input)
 	if err != nil {
+		var appErr *apperror.AppError
+		if errors.As(err, &appErr) && appErr.Code == apperror.ErrInsufficientStock.Code && h.alerts != nil {
+			h.alerts.OnReservationBlocked(c.Context(), c.Params("woNumber"), appErr.Details)
+		}
 		return response.Fail(c, err)
 	}
 	return response.OK(c, wo)

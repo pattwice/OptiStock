@@ -81,5 +81,6 @@ npm run dev
 - [x] Phase 1 — Item & LOT Management
 - [x] Phase 2 — Work Orders
 - [x] Phase 3 — Approval Flow
+- [x] Phase 4 — Alerts & Reports (S3 upload deferred to Phase 5)
 
 **Browser testing:** see `doc/testing/AGENT_BROWSER_GUIDE.md`

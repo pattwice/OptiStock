@@ -177,33 +177,33 @@
 **Goal:** Supervisors and users see real-time alerts. All 6 reports export to Excel and CSV.
 
 ### Backend — Alerts
-- [ ] `internal/ws/` — WebSocket hub (register/unregister clients, broadcast by role)
-- [ ] `GET /api/v1/ws` — WebSocket upgrade endpoint (JWT validated at handshake)
-- [ ] Alert rule: **Low Stock** — triggered after every B2 write; check `v_item_available_stock < Min_Stock_Level`
-- [ ] Alert rule: **Near Expiry** — daily scheduled job + triggered on LOT create/update
-- [ ] Alert rule: **LOT on Hold/Quarantine** — triggered on B1 status change; targets affected WO owners
-- [ ] Alert rule: **Over-Reservation Blocked** — triggered when RESERVED transition fails
-- [ ] Alert rule: **Approval Pending** — triggered on D2 INSERT (PENDING); targets supervisors
-- [ ] Alert rule: **Approval Withdrawn** — triggered on D2 WITHDRAWN; targets supervisors
+- [x] `internal/ws/` — WebSocket hub (register/unregister clients, broadcast by role)
+- [x] `GET /api/v1/ws` — WebSocket upgrade endpoint (JWT validated at handshake)
+- [x] Alert rule: **Low Stock** — triggered after every B2 write; check `v_item_available_stock < Min_Stock_Level`
+- [x] Alert rule: **Near Expiry** — daily scheduled job + triggered on LOT create/update
+- [x] Alert rule: **LOT on Hold/Quarantine** — triggered on B1 status change; targets affected WO owners
+- [x] Alert rule: **Over-Reservation Blocked** — triggered when RESERVED transition fails
+- [x] Alert rule: **Approval Pending** — triggered on D2 INSERT (PENDING); targets supervisors
+- [x] Alert rule: **Approval Withdrawn** — triggered on D2 WITHDRAWN; targets supervisors
 
 ### Backend — Reports
-- [ ] `domain/report/` — one handler per report, shared export utilities in `pkg/export/`
-- [ ] Report: **Stock On Hand** — from `v_lot_available_stock`, filters: item type, lot status, near-expiry flag
-- [ ] Report: **Movement Ledger** — from B2, filters: date range, transaction type, item, lot
-- [ ] Report: **WO Summary** — C1 join C1.5, filters: status, date range, FG code
-- [ ] Report: **Shortage / Damage** — B2 WHERE type IN (ADJ_OUT) + Reason_Code filter
-- [ ] Report: **Audit Trail** — D1, filters: WO number, action type, date range, user
-- [ ] Report: **Partial Completion Log** — D2 join C1, filters: date range, approval status
-- [ ] Excel export — `excelize` library, one sheet per report, column headers match SRS §5.2
-- [ ] CSV export — standard encoding, same column order as Excel
-- [ ] Cloud upload — after export, optionally push to S3/MinIO under `reports/YYYY-MM-DD/`
+- [x] `domain/report/` — one handler per report, shared export utilities in `pkg/export/`
+- [x] Report: **Stock On Hand** — from `v_lot_available_stock`, filters: item type, lot status, near-expiry flag
+- [x] Report: **Movement Ledger** — from B2, filters: date range, transaction type, item, lot
+- [x] Report: **WO Summary** — C1 join C1.5, filters: status, date range, FG code
+- [x] Report: **Shortage / Damage** — B2 WHERE type IN (ADJ_OUT) + Reason_Code filter
+- [x] Report: **Audit Trail** — D1, filters: WO number, action type, date range, user
+- [x] Report: **Partial Completion Log** — D2 join C1, filters: date range, approval status
+- [x] Excel export — `excelize` library, one sheet per report, column headers match SRS §5.2
+- [x] CSV export — standard encoding, same column order as Excel
+- [ ] Cloud upload — after export, optionally push to S3/MinIO under `reports/YYYY-MM-DD/` (deferred to Phase 5)
 
 ### Frontend
-- [ ] `hooks/useAlerts.ts` — Zustand slice for alerts, WebSocket connection with auto-reconnect
-- [ ] Notification panel — drawer showing recent alerts, unread count badge on bell icon
-- [ ] Alert toast — Ant Design notification for incoming WebSocket alerts
-- [ ] Reports page — tab per report type, filter controls, "Export Excel" + "Export CSV" buttons
-- [ ] Report tables — paginated, sortable columns
+- [x] `hooks/useAlerts.ts` — Zustand slice for alerts, WebSocket connection with auto-reconnect
+- [x] Notification panel — drawer showing recent alerts, unread count badge on bell icon
+- [x] Alert toast — Ant Design notification for incoming WebSocket alerts
+- [x] Reports page — tab per report type, filter controls, "Export Excel" + "Export CSV" buttons
+- [x] Report tables — paginated, sortable columns
 
 **Done when:** Receiving below Min_Stock_Level pushes a LOW_STOCK notification to browser without refresh. All 6 reports load with data and export correctly to Excel.
 

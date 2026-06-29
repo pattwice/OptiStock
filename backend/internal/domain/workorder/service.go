@@ -6,12 +6,14 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5"
+	"optistock/internal/domain/alert"
 	"optistock/pkg/apperror"
 )
 
 type Service struct {
 	repo         *Repository
 	approvalRepo ApprovalRepository
+	alerts       alert.Notifier
 }
 
 type ApprovalRepository interface {
@@ -20,8 +22,8 @@ type ApprovalRepository interface {
 	HasPendingForWO(ctx context.Context, tx pgx.Tx, woNumber string) (bool, error)
 }
 
-func NewService(repo *Repository, approvalRepo ApprovalRepository) *Service {
-	return &Service{repo: repo, approvalRepo: approvalRepo}
+func NewService(repo *Repository, approvalRepo ApprovalRepository, alerts alert.Notifier) *Service {
+	return &Service{repo: repo, approvalRepo: approvalRepo, alerts: alerts}
 }
 
 func (s *Service) Create(ctx context.Context, userID string, input CreateWOInput) (*WorkOrderDetail, error) {
@@ -361,7 +363,8 @@ func (s *Service) Complete(ctx context.Context, userID, woNumber string, input C
 	if err != nil {
 		return nil, err
 	}
-	if err := s.executeCompletionLedger(ctx, tx, userID, wo, actualProduced, allocs); err != nil {
+	fgLotID, err := s.executeCompletionLedger(ctx, tx, userID, wo, actualProduced, allocs)
+	if err != nil {
 		return nil, err
 	}
 	if err := s.finalizeCompletion(ctx, tx, userID, woNumber, wo, actualProduced, "100.00", StatusCompleted, "Status_Change"); err != nil {
@@ -371,6 +374,7 @@ func (s *Service) Complete(ctx context.Context, userID, woNumber string, input C
 	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
+	s.emitPostCompletionAlerts(ctx, woNumber, fgLotID, allocs)
 	return s.Get(ctx, woNumber)
 }
 
@@ -437,6 +441,10 @@ func (s *Service) SubmitForApproval(ctx context.Context, userID, woNumber string
 
 	if err := tx.Commit(ctx); err != nil {
 		return nil, err
+	}
+	if s.alerts != nil {
+		name, _ := s.repo.GetUserName(ctx, userID)
+		s.alerts.OnApprovalPending(ctx, woNumber, wo.TargetFGCode, pct, name)
 	}
 	return s.Get(ctx, woNumber)
 }

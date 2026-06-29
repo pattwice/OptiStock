@@ -4,15 +4,17 @@ import (
 	"context"
 	"strings"
 
+	"optistock/internal/domain/alert"
 	"optistock/pkg/apperror"
 )
 
 type Service struct {
-	repo *Repository
+	repo   *Repository
+	alerts alert.Notifier
 }
 
-func NewService(repo *Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo *Repository, alerts alert.Notifier) *Service {
+	return &Service{repo: repo, alerts: alerts}
 }
 
 func (s *Service) CreateLot(ctx context.Context, input CreateLotInput) (*Lot, error) {
@@ -25,7 +27,14 @@ func (s *Service) CreateLot(ctx context.Context, input CreateLotInput) (*Lot, er
 	if !isValidStatus(input.Status) {
 		return nil, apperror.WithMessage(apperror.ErrValidation, "invalid status")
 	}
-	return s.repo.CreateLot(ctx, input)
+	lot, err := s.repo.CreateLot(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+	if s.alerts != nil {
+		s.alerts.AfterLotChange(ctx, lot.LotInternalID)
+	}
+	return lot, nil
 }
 
 func (s *Service) GetLot(ctx context.Context, lotInternalID string) (*Lot, error) {
@@ -74,6 +83,9 @@ func (s *Service) UpdateLotStatus(ctx context.Context, lotInternalID, newStatus 
 	}
 	if updated == nil {
 		return nil, apperror.ErrNotFound
+	}
+	if s.alerts != nil {
+		s.alerts.OnLotStatusChange(ctx, lotInternalID, newStatus)
 	}
 	return updated, nil
 }

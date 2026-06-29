@@ -488,6 +488,20 @@ func derefStr(s *string) *string {
 	return &v
 }
 
+func (r *Repository) GetUserName(ctx context.Context, userID string) (string, error) {
+	var name string
+	err := r.pool.QueryRow(ctx, `SELECT name FROM users WHERE id = $1::uuid`, userID).Scan(&name)
+	return name, err
+}
+
+func (r *Repository) FindFGLotIDByWONumber(ctx context.Context, woNumber string) (string, error) {
+	var lotID string
+	err := r.pool.QueryRow(ctx, `
+		SELECT lot_internal_id::text FROM b1_lots WHERE supplier_lot_number = $1 ORDER BY created_at DESC LIMIT 1
+	`, woNumber).Scan(&lotID)
+	return lotID, err
+}
+
 func statusLabel(old, new WOStatus) string {
 	return fmt.Sprintf("%s → %s", old, new)
 }

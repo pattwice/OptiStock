@@ -11,9 +11,12 @@ import {
 } from '@ant-design/icons'
 import { Layout, Menu, Button, Typography, Space, Badge } from 'antd'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { logout } from '../api/auth'
 import { useAuthStore } from '../store/authStore'
+import { useAlertStore } from '../store/alertStore'
+import { useAlerts } from '../hooks/useAlerts'
+import { NotificationDrawer } from './NotificationDrawer'
 
 const { Header, Sider, Content } = Layout
 
@@ -36,6 +39,9 @@ export function AppLayout() {
   const navigate = useNavigate()
   const user = useAuthStore((state) => state.user)
   const clearSession = useAuthStore((state) => state.clearSession)
+  const unreadCount = useAlertStore((s) => s.alerts.filter((a) => !a.read).length)
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  useAlerts()
 
   const navItems = useMemo(() => {
     const items = [
@@ -64,7 +70,7 @@ export function AppLayout() {
             : []),
         ],
       },
-      { key: '/reports', icon: <FileTextOutlined />, label: 'Reports', disabled: true },
+      { key: '/reports', icon: <FileTextOutlined />, label: <Link to="/reports">Reports</Link> },
       { key: '/admin', icon: <SettingOutlined />, label: 'Admin', disabled: true },
     ]
     return items
@@ -104,8 +110,13 @@ export function AppLayout() {
         >
           <Typography.Text strong>Production & Inventory</Typography.Text>
           <Space>
-            <Badge dot>
-              <Button type="text" icon={<BellOutlined />} aria-label="Notifications" />
+            <Badge count={unreadCount} size="small">
+              <Button
+                type="text"
+                icon={<BellOutlined />}
+                aria-label="Notifications"
+                onClick={() => setDrawerOpen(true)}
+              />
             </Badge>
             <Typography.Text>{user?.name}</Typography.Text>
             <Button icon={<LogoutOutlined />} onClick={handleLogout}>
@@ -117,6 +128,7 @@ export function AppLayout() {
           <Outlet />
         </Content>
       </Layout>
+      <NotificationDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
     </Layout>
   )
 }

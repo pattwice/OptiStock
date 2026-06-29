@@ -61,7 +61,7 @@ func (s *Service) executeCompletionLedger(
 	wo *WorkOrder,
 	actualProduced string,
 	allocs []Allocation,
-) error {
+) (string, error) {
 	docRef := fmt.Sprintf("WO:%s", wo.WONumber)
 	const damageReason = "PRODUCTION_DAMAGE"
 
@@ -78,41 +78,41 @@ func (s *Service) executeCompletionLedger(
 		if isPositive(used) {
 			qty, ok := negateQty(used)
 			if !ok {
-				return apperror.ErrValidation
+				return "", apperror.ErrValidation
 			}
 			if err := s.applyNegativeStockGuard(ctx, tx, a.LOTInternalID, qty); err != nil {
-				return err
+				return "", err
 			}
 			if err := s.repo.InsertLedger(ctx, tx, userID, "WO_ISSUE", a.LOTInternalID, qty, docRef, nil); err != nil {
-				return err
+				return "", err
 			}
 		}
 
 		if isPositive(dmg) {
 			qty, ok := negateQty(dmg)
 			if !ok {
-				return apperror.ErrValidation
+				return "", apperror.ErrValidation
 			}
 			if err := s.applyNegativeStockGuard(ctx, tx, a.LOTInternalID, qty); err != nil {
-				return err
+				return "", err
 			}
 			reason := damageReason
 			if err := s.repo.InsertLedger(ctx, tx, userID, "ADJ_OUT", a.LOTInternalID, qty, docRef, &reason); err != nil {
-				return err
+				return "", err
 			}
 		}
 
 		remainder, ok := subRat(a.ReservedQty, used)
 		if !ok {
-			return apperror.ErrInternal
+			return "", apperror.ErrInternal
 		}
 		remainder, ok = subRat(remainder, dmg)
 		if !ok {
-			return apperror.ErrInternal
+			return "", apperror.ErrInternal
 		}
 		if isPositive(remainder) {
 			if err := s.repo.InsertLedger(ctx, tx, userID, "RETURN_TO_STOCK", a.LOTInternalID, remainder, docRef, nil); err != nil {
-				return err
+				return "", err
 			}
 		}
 	}
@@ -127,9 +127,12 @@ func (s *Service) executeCompletionLedger(
 
 	fgLotID, err := s.repo.CreateFGLot(ctx, tx, wo.TargetFGCode, wo.WONumber, mfgDate, expDate)
 	if err != nil {
-		return err
+		return "", err
 	}
-	return s.repo.InsertLedger(ctx, tx, userID, "WO_RECEIPT", fgLotID, actualProduced, docRef, nil)
+	if err := s.repo.InsertLedger(ctx, tx, userID, "WO_RECEIPT", fgLotID, actualProduced, docRef, nil); err != nil {
+		return "", err
+	}
+	return fgLotID, nil
 }
 
 func (s *Service) finalizeCompletion(
@@ -174,8 +177,32 @@ func (s *Service) FinalizeApprovedCompletionTx(ctx context.Context, tx pgx.Tx, s
 	if err != nil {
 		return err
 	}
-	if err := s.executeCompletionLedger(ctx, tx, supervisorID, wo, *wo.ActualProducedQty, allocs); err != nil {
+	if _, err := s.executeCompletionLedger(ctx, tx, supervisorID, wo, *wo.ActualProducedQty, allocs); err != nil {
 		return err
 	}
 	return s.finalizeCompletion(ctx, tx, supervisorID, woNumber, wo, *wo.ActualProducedQty, *wo.CompletionPct, StatusCompletedPartial, "Approval_Resolved")
+}
+
+func (s *Service) EmitPostCompletionAlerts(ctx context.Context, woNumber string) {
+	allocs, err := s.repo.ListAllocations(ctx, woNumber)
+	if err != nil {
+		return
+	}
+	fgLotID, _ := s.repo.FindFGLotIDByWONumber(ctx, woNumber)
+	s.emitPostCompletionAlerts(ctx, woNumber, fgLotID, allocs)
+}
+
+func (s *Service) emitPostCompletionAlerts(ctx context.Context, woNumber, fgLotID string, allocs []Allocation) {
+	if s.alerts == nil {
+		return
+	}
+	for _, a := range allocs {
+		s.alerts.AfterLotLedgerWrite(ctx, a.LOTInternalID)
+	}
+	if fgLotID != "" {
+		s.alerts.AfterLotLedgerWrite(ctx, fgLotID)
+	}
+	if wo, err := s.repo.GetHeader(ctx, woNumber); err == nil && wo != nil {
+		s.alerts.AfterLedgerWrite(ctx, wo.TargetFGCode)
+	}
 }
