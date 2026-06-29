@@ -23,6 +23,8 @@ type Config struct {
 }
 
 func Load() (*Config, error) {
+	// Root .env when running from backend/; local .env overrides.
+	_ = godotenv.Load("../.env")
 	_ = godotenv.Load()
 
 	databaseURL, err := resolveDatabaseURL()

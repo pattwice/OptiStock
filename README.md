@@ -8,52 +8,59 @@ Production & inventory management for contract packaging and secondary manufactu
 - **Frontend:** React + TypeScript + Ant Design + Vite
 - **Docs:** `doc/srs/`, `doc/architecture/`, `doc/plan/`
 
-## Quick start (Docker)
+## Quick start — local dev (recommended)
+
+Postgres in Docker; API and frontend on your machine (faster reload/debug).
+
+**Prerequisites:** Go 1.26+, Node 20+, Docker Desktop
 
 ```powershell
-# Creates .env with a generated DB password on first run (never committed)
-.\start.ps1
-```
+# Terminal 1 — database
+.\start-db.ps1
 
-Or manually:
+# Terminal 2 — API (reads .env from repo root)
+.\start-backend.ps1
 
-```powershell
-# 1. Create local secrets file and JWT keys (first time only)
-Copy-Item .env.example .env
-# Edit .env — set POSTGRES_PASSWORD to a strong value
-powershell -ExecutionPolicy Bypass -File .\scripts\generate-jwt-keys.ps1
-
-# 2. Start all services
-docker compose -f docker-compose.dev.yml up --build
+# Terminal 3 — frontend
+.\start-frontend.ps1
 ```
 
 - Frontend: http://localhost:5173
 - API: http://localhost:8080/api/v1/health
-- App login (seeded dev user): `admin@optistock.local` / `changeme`
+- Login: `admin@optistock.local` / `changeme`
 
-> **Secrets:** `.env` and `backend/keys/` are gitignored. Only `.env.example` is tracked, with placeholders — never real passwords.
+First run creates `.env` (random DB password) and `backend/keys/` if missing.
 
-## Local development (without Docker)
+> **Secrets:** `.env` and `backend/keys/` are gitignored. Only `.env.example` is tracked, with placeholders.
 
-### Backend
+## Full stack in Docker (optional)
+
+Use for onboarding or prod-like checks:
 
 ```powershell
-cd backend
-go run ./scripts/generatekeys/main.go keys
-Copy-Item ..\.env.example .env
-# Edit .env — set POSTGRES_PASSWORD (and POSTGRES_HOST=localhost)
-go run ./cmd/server
+.\start.ps1
 ```
 
-### Frontend
+Same URLs as above. API runs with `air` inside the container.
+
+## Manual setup (without scripts)
 
 ```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\ensure-dev-env.ps1
+docker compose -f docker-compose.db.yml up -d
+
+cd backend
+go run ./cmd/server
+
+# separate terminal
 cd frontend
 npm install
 npm run dev
 ```
 
-## API (Phase 0)
+`.env.example` sets `POSTGRES_HOST=localhost` for host API. Docker full-stack overrides to `postgres` in `docker-compose.dev.yml`.
+
+## API
 
 | Method | Path | Auth |
 | :--- | :--- | :--- |
@@ -62,8 +69,13 @@ npm run dev
 | POST | `/api/v1/auth/refresh` | Cookie |
 | POST | `/api/v1/auth/logout` | Cookie |
 | GET | `/api/v1/me` | Bearer JWT |
+| GET/POST/PATCH | `/api/v1/items` | Bearer JWT |
+| GET/POST | `/api/v1/bom` | Bearer JWT |
+| GET/POST | `/api/v1/lots` | Bearer JWT |
+| GET | `/api/v1/ledger` | Bearer JWT |
+| POST | `/api/v1/receiving/po`, `/adjustment` | Bearer JWT |
 
 ## Project status
 
 - [x] Phase 0 — Foundation
-- [ ] Phase 1 — Item & LOT Management
+- [ ] Phase 1 — Item & LOT Management (backend APIs done; frontend pages pending)

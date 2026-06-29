@@ -13,7 +13,9 @@ backend/.env
 backend/keys/
 
 # IDE & OS
-.cursor/
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/**
 .idea/
 .vscode/
 *.swp
@@ -22,6 +24,9 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Local API test payloads (e.g. curl --data-binary @login.json)
+login.json
 
 # Go
 backend/bin/

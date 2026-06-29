@@ -40,6 +40,20 @@ func Fail(c *fiber.Ctx, err error) error {
 			},
 		})
 	}
+	var fiberErr *fiber.Error
+	if errors.As(err, &fiberErr) {
+		code := apperror.ErrNotFound.Code
+		if fiberErr.Code != fiber.StatusNotFound {
+			code = apperror.ErrInternal.Code
+		}
+		return c.Status(fiberErr.Code).JSON(Envelope{
+			Success: false,
+			Error: &ErrorBody{
+				Code:    code,
+				Message: fiberErr.Message,
+			},
+		})
+	}
 	return c.Status(fiber.StatusInternalServerError).JSON(Envelope{
 		Success: false,
 		Error: &ErrorBody{

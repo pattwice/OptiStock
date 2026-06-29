@@ -1,0 +1,32 @@
+---
+description: Repo workflow rules: secrets hygiene, plan tracking, migration immutability, verification before done
+alwaysApply: true
+---
+
+# Project Workflow & Safety
+
+## Secrets hygiene (must follow)
+
+- Never commit real passwords, tokens, private keys, or connection strings.
+- `.env` and `backend/keys/` are local-only and must stay gitignored.
+- `.env.example` may exist in git, but it must contain **placeholders only** (e.g., `change-me-before-starting`).
+- If a tracked file accidentally contains credentials, remove them immediately and move configuration to env vars.
+
+## Plan tracking (must follow)
+
+- Keep `doc/plan/PLAN_v1.0.md` up to date:
+  - When a checklist item is finished, flip `[ ]` → `[x]` in the same change-set.
+  - Do not mark items complete unless at least one real verification was run.
+
+## Database migrations (must follow)
+
+- Treat migrations as immutable. Do not edit an old migration after it has been applied.
+- Fix forward: create a new migration with the next sequence number.
+
+## Verification before “done” (must follow)
+
+- Before claiming a phase/task is complete, run at least one relevant check:
+  - Backend: `go build ./...` and/or a smoke endpoint call
+  - Frontend: `npm run build`
+  - DB: confirm migrations applied (tables/views exist) and a minimal flow works
+

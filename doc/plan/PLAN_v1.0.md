@@ -58,28 +58,28 @@
 **Goal:** Warehouse staff can manage items, BOMs, lots, and receive stock. Stock On Hand is visible.
 
 ### Migrations
-- [ ] `000002_create_a1_items.up.sql` — Table A1
-- [ ] `000003_create_a2_bom.up.sql` — Table A2 + unique constraint (one active version per parent)
-- [ ] `000004_create_b1_lots.up.sql` — Table B1
-- [ ] `000005_create_b2_ledger.up.sql` — Table B2 (append-only; add trigger to block UPDATE/DELETE)
-- [ ] `000006_create_stock_views.up.sql` — `v_lot_physical_stock`, `v_lot_available_stock`, `v_item_available_stock`
-- [ ] `000007_create_e1_config.up.sql` — Table E1 + seed defaults (NEAR_EXPIRY_DAYS_DEFAULT = 30)
+- [x] `000002_create_a1_items.up.sql` — Table A1
+- [x] `000003_create_a2_bom.up.sql` — Table A2 + unique constraint (one active version per parent)
+- [x] `000004_create_b1_lots.up.sql` — Table B1
+- [x] `000005_create_b2_ledger.up.sql` — Table B2 (append-only; add trigger to block UPDATE/DELETE)
+- [x] `000006_create_stock_views.up.sql` — `v_lot_physical_stock`, `v_lot_available_stock`, `v_item_available_stock`
+- [x] `000007_create_e1_config.up.sql` — Table E1 + seed defaults (NEAR_EXPIRY_DAYS_DEFAULT = 30)
 
 ### Backend — Items (A1, A2)
-- [ ] `domain/item/` — CRUD for Item Master (list with filter by type, get, create, update)
-- [ ] `domain/item/` — BOM Ledger CRUD (list by parent, create version, activate version)
-- [ ] BOM version activation enforces the one-active-per-parent constraint
+- [x] `domain/item/` — CRUD for Item Master (list with filter by type, get, create, update)
+- [x] `domain/item/` — BOM Ledger CRUD (list by parent, create version, activate version)
+- [x] BOM version activation enforces the one-active-per-parent constraint
 
 ### Backend — LOTs (B1)
-- [ ] `domain/lot/` — LOT Master CRUD (list with filters, get, create on first receipt)
-- [ ] LOT status transitions (Active ↔ Hold, Active/Hold → Quarantined, Quarantined → Hold) with role guard
-- [ ] Re-receipt mismatch rule — block and return warning if MFG/EXP dates differ from existing record
+- [x] `domain/lot/` — LOT Master CRUD (list with filters, get, create on first receipt)
+- [x] LOT status transitions (Active ↔ Hold, Active/Hold → Quarantined, Quarantined → Hold) with role guard
+- [x] Re-receipt mismatch rule — block and return warning if MFG/EXP dates differ from existing record
 
 ### Backend — Ledger & Receiving (B2)
-- [ ] `domain/ledger/` — read-only query API (list transactions by LOT or item, date range)
-- [ ] `domain/receiving/` — `POST /receiving/po` — PO_RECEIPT + optional ADJ_OUT for supplier damage
-- [ ] `domain/receiving/` — `POST /receiving/adjustment` — ADJ_IN / ADJ_OUT with mandatory Reason_Code
-- [ ] Negative stock prevention enforced in receiving service before insert
+- [x] `domain/ledger/` — read-only query API (list transactions by LOT or item, date range)
+- [x] `domain/receiving/` — `POST /receiving/po` — PO_RECEIPT + optional ADJ_OUT for supplier damage
+- [x] `domain/receiving/` — `POST /receiving/adjustment` — ADJ_IN / ADJ_OUT with mandatory Reason_Code
+- [x] Negative stock prevention enforced in receiving service before insert
 
 ### Frontend
 - [ ] Item Master page — table with Item_Type filter, create/edit modal

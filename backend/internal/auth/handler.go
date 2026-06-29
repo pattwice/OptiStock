@@ -26,7 +26,7 @@ func (h *Handler) RegisterRoutes(router fiber.Router) {
 func (h *Handler) Login(c *fiber.Ctx) error {
 	var input LoginInput
 	if err := c.BodyParser(&input); err != nil {
-		return response.Fail(c, err)
+		return response.Fail(c, apperror.WithMessage(apperror.ErrValidation, "invalid JSON body"))
 	}
 	if input.Email == "" || input.Password == "" {
 		return response.Fail(c, apperror.WithMessage(apperror.ErrValidation, "email and password are required"))

@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS b1_lots;
