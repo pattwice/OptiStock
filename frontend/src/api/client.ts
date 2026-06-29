@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { useAuthStore } from '../store/authStore'
 
+// Empty baseURL = same origin; Vite proxies /api → backend in dev.
 const baseURL = import.meta.env.VITE_API_BASE_URL ?? ''
 
 export const apiClient = axios.create({
@@ -9,7 +10,13 @@ export const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 15000,
 })
+
+function isAuthEndpoint(url?: string) {
+  if (!url) return false
+  return url.includes('/auth/login') || url.includes('/auth/refresh') || url.includes('/auth/logout')
+}
 
 apiClient.interceptors.request.use((config) => {
   const token = useAuthStore.getState().accessToken
@@ -25,7 +32,12 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const original = error.config
-    if (error.response?.status !== 401 || original._retry) {
+    if (
+      !original ||
+      error.response?.status !== 401 ||
+      original._retry ||
+      isAuthEndpoint(original.url)
+    ) {
       return Promise.reject(error)
     }
 
