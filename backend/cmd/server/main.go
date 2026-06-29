@@ -12,6 +12,10 @@ import (
 	"optistock/internal/auth"
 	"optistock/internal/config"
 	"optistock/internal/database"
+	"optistock/internal/domain/ledger"
+	"optistock/internal/domain/item"
+	"optistock/internal/domain/lot"
+	"optistock/internal/domain/receiving"
 	"optistock/internal/middleware"
 	"optistock/pkg/response"
 )
@@ -42,6 +46,22 @@ func main() {
 	authService := auth.NewService(authRepo, tokenManager, cfg)
 	authHandler := auth.NewHandler(authService, cfg.AppEnv)
 
+	itemRepo := item.NewRepository(pool)
+	itemService := item.NewService(itemRepo)
+	itemHandler := item.NewHandler(itemService)
+
+	lotRepo := lot.NewRepository(pool)
+	lotService := lot.NewService(lotRepo)
+	lotHandler := lot.NewHandler(lotService)
+
+	ledgerRepo := ledger.NewRepository(pool)
+	ledgerService := ledger.NewService(ledgerRepo)
+	ledgerHandler := ledger.NewHandler(ledgerService)
+
+	receivingRepo := receiving.NewRepository(pool)
+	receivingService := receiving.NewService(receivingRepo)
+	receivingHandler := receiving.NewHandler(receivingService)
+
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			return response.Fail(c, err)
@@ -57,6 +77,24 @@ func main() {
 
 	protected := api.Group("", middleware.JWTAuth(tokenManager))
 	protected.Get("/me", authHandler.Me)
+
+	itemsRoutes := protected.Group("/items")
+	itemHandler.RegisterItemRoutes(itemsRoutes)
+	bomRoutes := protected.Group("/bom")
+	itemHandler.RegisterBOMRoutes(bomRoutes)
+
+	lotsRoutes := protected.Group("/lots")
+	// LOT status transitions are role-gated at the route level.
+	lotsRoutes.Patch("/:lotInternalID/status", middleware.RequireRole(auth.RoleSupervisor, auth.RoleAdmin), lotHandler.UpdateLotStatus)
+	lotsRoutes.Get("/", lotHandler.ListLots)
+	lotsRoutes.Post("/", lotHandler.CreateLot)
+	lotsRoutes.Get("/:lotInternalID", lotHandler.GetLot)
+
+	ledgerRoutes := protected.Group("/ledger")
+	ledgerHandler.RegisterRoutes(ledgerRoutes)
+
+	receivingRoutes := protected.Group("/receiving")
+	receivingHandler.RegisterRoutes(receivingRoutes)
 
 	go func() {
 		log.Printf("api listening on :%s", cfg.HTTPPort)
