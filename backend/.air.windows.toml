@@ -1,13 +1,13 @@
+# Air config for Windows local dev (requires .exe binary path).
 root = "."
 tmp_dir = "tmp"
 
 [build]
-  cmd = "go build -o ./tmp/main ./cmd/server"
-  bin = "./tmp/main"
+  cmd = "go build -o ./tmp/main.exe ./cmd/server"
+  bin = "./tmp/main.exe"
   include_ext = ["go", "tpl", "tmpl", "html"]
   exclude_dir = ["tmp", "vendor", "node_modules"]
   delay = 1000
-  # Linux/macOS/Docker — use .air.windows.toml on Windows (see start-backend.ps1)
 
 [log]
   time = false
