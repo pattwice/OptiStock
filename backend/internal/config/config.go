@@ -12,6 +12,7 @@ import (
 
 type Config struct {
 	AppEnv            string
+	AppVersion        string
 	HTTPPort          string
 	DatabaseURL       string
 	MigrationsPath    string
@@ -34,6 +35,7 @@ func Load() (*Config, error) {
 
 	cfg := &Config{
 		AppEnv:            getEnv("APP_ENV", "development"),
+		AppVersion:        getEnv("APP_VERSION", "1.0.0"),
 		HTTPPort:          getEnv("HTTP_PORT", "8080"),
 		DatabaseURL:       databaseURL,
 		MigrationsPath:    getEnv("MIGRATIONS_PATH", "migrations"),

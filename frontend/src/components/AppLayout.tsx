@@ -25,6 +25,7 @@ function selectedKeys(pathname: string): string[] {
   if (pathname.startsWith('/inventory')) return [pathname]
   if (pathname.startsWith('/workorders')) return [pathname === '/workorders/new' ? '/workorders' : pathname]
   if (pathname.startsWith('/approvals')) return ['/approvals']
+  if (pathname.startsWith('/admin')) return ['/admin']
   return [pathname]
 }
 
@@ -70,8 +71,10 @@ export function AppLayout() {
             : []),
         ],
       },
+      ...(user?.role === 'admin'
+        ? [{ key: '/admin', icon: <SettingOutlined />, label: <Link to="/admin">Admin</Link> }]
+        : []),
       { key: '/reports', icon: <FileTextOutlined />, label: <Link to="/reports">Reports</Link> },
-      { key: '/admin', icon: <SettingOutlined />, label: 'Admin', disabled: true },
     ]
     return items
   }, [user?.role])

@@ -81,6 +81,26 @@ npm run dev
 - [x] Phase 1 — Item & LOT Management
 - [x] Phase 2 — Work Orders
 - [x] Phase 3 — Approval Flow
-- [x] Phase 4 — Alerts & Reports (S3 upload deferred to Phase 5)
+- [x] Phase 4 — Alerts & Reports
+- [x] Phase 5 — Deployment (production Docker, backups, admin panel)
 
 **Browser testing:** see `doc/testing/AGENT_BROWSER_GUIDE.md`
+
+## Production deploy
+
+```powershell
+# 1. Copy and edit secrets
+copy .env.prod.example .env.prod
+# Set POSTGRES_PASSWORD, generate JWT keys (scripts/generate-jwt-keys.ps1)
+
+# 2. Start stack (Postgres + API + Nginx on port 80)
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+
+# 3. Optional demo data
+# psql ... -f scripts/seed.sql
+
+# 4. Daily backup (cron at 02:00)
+# 0 2 * * * /opt/optistock/scripts/backup.sh
+```
+
+Factory users open `http://<server-ip>/` on the LAN. Admin panel: `/admin`.

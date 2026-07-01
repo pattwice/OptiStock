@@ -13,6 +13,7 @@ import (
 	"optistock/internal/auth"
 	"optistock/internal/config"
 	"optistock/internal/database"
+	"optistock/internal/domain/admin"
 	"optistock/internal/domain/alert"
 	"optistock/internal/domain/approval"
 	"optistock/internal/domain/item"
@@ -25,6 +26,7 @@ import (
 	"optistock/internal/middleware"
 	"optistock/internal/ws"
 	"optistock/pkg/response"
+	"optistock/pkg/storage"
 )
 
 func main() {
@@ -89,8 +91,13 @@ func main() {
 	approvalHandler := approval.NewHandler(approvalService)
 
 	reportRepo := report.NewRepository(pool)
-	reportService := report.NewService(reportRepo)
+	reportUploader := storage.NewFromEnv()
+	reportService := report.NewService(reportRepo, reportUploader)
 	reportHandler := report.NewHandler(reportService)
+
+	adminRepo := admin.NewRepository(pool)
+	adminService := admin.NewService(adminRepo)
+	adminHandler := admin.NewHandler(adminService)
 
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
@@ -100,7 +107,7 @@ func main() {
 	middleware.Register(app, cfg.CORSOrigins)
 
 	api := app.Group("/api/v1")
-	api.Get("/health", healthHandler(pool))
+	api.Get("/health", healthHandler(pool, cfg.AppVersion))
 
 	authRoutes := api.Group("/auth")
 	authHandler.RegisterRoutes(authRoutes)
@@ -150,6 +157,9 @@ func main() {
 	reportRoutes := protected.Group("/reports")
 	reportHandler.RegisterRoutes(reportRoutes)
 
+	adminRoutes := protected.Group("/admin", middleware.RequireRole(auth.RoleAdmin))
+	adminHandler.RegisterRoutes(adminRoutes)
+
 	go func() {
 		log.Printf("api listening on :%s", cfg.HTTPPort)
 		if err := app.Listen(":" + cfg.HTTPPort); err != nil {
@@ -169,7 +179,7 @@ func main() {
 	}
 }
 
-func healthHandler(pool interface{ Ping(context.Context) error }) fiber.Handler {
+func healthHandler(pool interface{ Ping(context.Context) error }, version string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		if err := pool.Ping(c.Context()); err != nil {
 			return response.Fail(c, err)
@@ -177,6 +187,7 @@ func healthHandler(pool interface{ Ping(context.Context) error }) fiber.Handler 
 		return response.OK(c, fiber.Map{
 			"status":  "ok",
 			"service": "optistock-api",
+			"version": version,
 		})
 	}
 }

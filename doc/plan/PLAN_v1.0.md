@@ -196,7 +196,7 @@
 - [x] Report: **Partial Completion Log** — D2 join C1, filters: date range, approval status
 - [x] Excel export — `excelize` library, one sheet per report, column headers match SRS §5.2
 - [x] CSV export — standard encoding, same column order as Excel
-- [ ] Cloud upload — after export, optionally push to S3/MinIO under `reports/YYYY-MM-DD/` (deferred to Phase 5)
+- [x] Cloud upload — after export, optionally push to S3/MinIO under `reports/YYYY-MM-DD/` (`?upload=true` when S3 configured)
 
 ### Frontend
 - [x] `hooks/useAlerts.ts` — Zustand slice for alerts, WebSocket connection with auto-reconnect
@@ -214,22 +214,22 @@
 **Goal:** System runs on the factory server behind Nginx. Daily backups go to S3/MinIO. Admin can manage users and config.
 
 ### Backend — Admin & Config
-- [ ] `GET/POST/PATCH /api/v1/admin/users` — user management (admin only)
-- [ ] `GET/PATCH /api/v1/admin/config` — system config E1 (NEAR_EXPIRY_DAYS_DEFAULT, alert toggles)
-- [ ] Seed script — `scripts/seed.sql` with E1 defaults and optional demo items
+- [x] `GET/POST/PATCH /api/v1/admin/users` — user management (admin only)
+- [x] `GET/PATCH /api/v1/admin/config` — system config E1 (NEAR_EXPIRY_DAYS_DEFAULT, alert toggles)
+- [x] Seed script — `scripts/seed.sql` with E1 defaults and optional demo items
 
 ### Infrastructure
-- [ ] `docker-compose.prod.yml` — services: `nginx`, `api`, `postgres` (no exposed ports except Nginx 443)
-- [ ] `Dockerfile.backend` (prod stage — `go build`, minimal distroless image)
-- [ ] `Dockerfile.frontend` (prod stage — `vite build`, serve via Nginx)
-- [ ] `nginx.conf` — reverse proxy `/api/` → Go API; serve React static files; HTTPS (self-signed or Let's Encrypt)
-- [ ] Environment variable management — `.env.prod` template, secrets not committed to git
-- [ ] `scripts/backup.sh` — `pg_dump | gzip | upload to S3/MinIO`; cron job at 02:00 daily
-- [ ] Health check endpoint — `GET /api/v1/health` (DB ping, version)
+- [x] `docker-compose.prod.yml` — services: `nginx`, `api`, `postgres` (no exposed ports except Nginx 80)
+- [x] `Dockerfile.backend` (prod stage — `go build`, minimal distroless image)
+- [x] `Dockerfile.nginx` (prod — `vite build`, serve via Nginx + API proxy)
+- [x] `nginx.conf` — reverse proxy `/api/` → Go API; serve React static files; optional HTTPS via `nginx-ssl.conf.example`
+- [x] Environment variable management — `.env.prod.example` template, secrets not committed to git
+- [x] `scripts/backup.sh` — `pg_dump | gzip | upload to S3/MinIO`; cron job at 02:00 daily
+- [x] Health check endpoint — `GET /api/v1/health` (DB ping, version)
 
 ### Frontend — Admin
-- [ ] Admin panel page (admin role only) — user list, create/edit user, role assignment
-- [ ] System Config page — edit E1 values (near-expiry threshold, alert toggles)
+- [x] Admin panel page (admin role only) — user list, create/edit user, role assignment
+- [x] System Config page — edit E1 values (near-expiry threshold, alert toggles)
 
 **Done when:** `docker compose -f docker-compose.prod.yml up -d` runs on the server; factory users can access the UI via browser on LAN; daily backup uploads to cloud storage.
 

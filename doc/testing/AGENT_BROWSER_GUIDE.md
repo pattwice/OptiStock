@@ -51,8 +51,10 @@ Use these URLs to jump straight to a screen (must be logged in except `/login`).
 | Create work order | `/workorders/new` | Work Orders → **Create WO** button |
 | Work order detail | `/workorders/{WO_NUMBER}` | Click WO number in list |
 | Approvals (supervisor) | `/approvals` | Production → Approvals |
+| Reports | `/reports` | Reports |
+| Admin (admin only) | `/admin` | Admin |
 
-**Not built yet (sidebar disabled):** Reports, Admin.
+**Admin-only:** `/admin` redirects non-admins to Dashboard.
 
 ---
 
@@ -60,12 +62,12 @@ Use these URLs to jump straight to a screen (must be logged in except `/login`).
 
 ```
 ┌──────────────┬─────────────────────────────────────────────┐
-│ Sidebar      │ Header: title | bell (placeholder) | user   │
+│ Sidebar      │ Header: title | bell (alerts) | user   │
 │ - Dashboard  ├─────────────────────────────────────────────┤
 │ - Inventory▾ │                                             │
 │ - Production▾│  Page content (tables, forms, tabs)        │
-│ - Reports ✗  │                                             │
-│ - Admin ✗    │                                             │
+│ - Admin*     │                                             │
+│ - Reports    │                                             │
 └──────────────┴─────────────────────────────────────────────┘
 ```
 
@@ -208,6 +210,20 @@ After a WO is **RESERVED**, `reserved_qty` should increase and `available_qty` d
 | Approve | **Approve** on row | WO → `COMPLETED_PARTIAL`, FG stock at partial qty |
 | Reject | **Reject** + mandatory notes | WO → `IN_PRODUCTION`, requester can re-submit |
 
+### 6.9 Reports — `/reports`
+
+| Action | How | Expect |
+| :--- | :--- | :--- |
+| View report | Tab per report type, apply filters | Paginated table loads |
+| Export CSV/Excel | Export buttons | File download |
+
+### 6.10 Admin — `/admin` (admin only)
+
+| Tab | Action | Expect |
+| :--- | :--- | :--- |
+| Users | Create / Edit user | New user can log in with assigned role |
+| System Config | Edit near-expiry days, alert toggles | Values persist after save |
+
 ---
 
 ## 7. End-to-end scenario (copy-paste flow)
@@ -242,7 +258,7 @@ Use this as a single browser regression path (~10 min).
 | Create WO fails | No active BOM | Activate BOM version for target FG |
 | Complete fails | Actual + damage > reserved | Lower actuals or resolve over-usage (API only for delta) |
 | LOT status change missing | Role = `user` | Login as `admin` or `supervisor` |
-| Reports / Admin greyed out | Not implemented | Skip — Phase 4/5 |
+| Reports / Admin greyed out | Wrong role | Login as `admin` for Admin menu |
 
 **API smoke (optional, not browser):**  
 Health: http://localhost:8080/api/v1/health  
@@ -259,7 +275,8 @@ Do **not** use PowerShell `curl -d '{...}'` for JSON — it mangles quotes. Use 
 | Work orders (full lifecycle) | ✓ | ✓ | ✓ |
 | Partial close / withdraw / re-appeal | ✓ | ✓ | ✓ |
 | Approvals dashboard (approve/reject) | | ✓ | ✓ |
-| Reports / Admin menu | — | — | — |
+| Reports | ✓ | ✓ | ✓ |
+| Admin panel | | | ✓ |
 
 *Only the seed **admin** account exists by default.*
 
@@ -273,4 +290,4 @@ Do **not** use PowerShell `curl -d '{...}'` for JSON — it mangles quotes. Use 
 | `doc/plan/PLAN_v1.0.md` | Phase scope — what is / isn't built |
 | `README.md` | Dev startup commands |
 
-**Last updated for:** Phase 0–3 (auth, inventory, work orders, approval flow). Update when Reports/Admin ship.
+**Last updated for:** Phase 0–5 (full stack including reports, alerts, admin, prod deploy).

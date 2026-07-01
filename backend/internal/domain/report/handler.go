@@ -46,7 +46,7 @@ func (h *Handler) StockOnHand(c *fiber.Ctx) error {
 }
 
 func (h *Handler) ExportStockOnHand(c *fiber.Ctx) error {
-	return h.sendExport(c, func() ([]byte, string, string, error) {
+	return h.sendExport(c, "stock-on-hand", func() ([]byte, string, string, error) {
 		return h.service.ExportStockOnHand(c.Context(), StockOnHandFilters{
 			ItemType:   c.Query("item_type"),
 			LotStatus:  c.Query("lot_status"),
@@ -73,7 +73,7 @@ func (h *Handler) MovementLedger(c *fiber.Ctx) error {
 }
 
 func (h *Handler) ExportMovementLedger(c *fiber.Ctx) error {
-	return h.sendExport(c, func() ([]byte, string, string, error) {
+	return h.sendExport(c, "movement-ledger", func() ([]byte, string, string, error) {
 		return h.service.ExportMovementLedger(c.Context(), MovementLedgerFilters{
 			FromDate:        c.Query("from_date"),
 			ToDate:          c.Query("to_date"),
@@ -100,7 +100,7 @@ func (h *Handler) WOSummary(c *fiber.Ctx) error {
 }
 
 func (h *Handler) ExportWOSummary(c *fiber.Ctx) error {
-	return h.sendExport(c, func() ([]byte, string, string, error) {
+	return h.sendExport(c, "wo-summary", func() ([]byte, string, string, error) {
 		return h.service.ExportWOSummary(c.Context(), WOSummaryFilters{
 			Status:       c.Query("status"),
 			FromDate:     c.Query("from_date"),
@@ -125,7 +125,7 @@ func (h *Handler) ShortageDamage(c *fiber.Ctx) error {
 }
 
 func (h *Handler) ExportShortageDamage(c *fiber.Ctx) error {
-	return h.sendExport(c, func() ([]byte, string, string, error) {
+	return h.sendExport(c, "shortage-damage", func() ([]byte, string, string, error) {
 		return h.service.ExportShortageDamage(c.Context(), ShortageDamageFilters{
 			FromDate:   c.Query("from_date"),
 			ToDate:     c.Query("to_date"),
@@ -151,7 +151,7 @@ func (h *Handler) AuditTrail(c *fiber.Ctx) error {
 }
 
 func (h *Handler) ExportAuditTrail(c *fiber.Ctx) error {
-	return h.sendExport(c, func() ([]byte, string, string, error) {
+	return h.sendExport(c, "audit-trail", func() ([]byte, string, string, error) {
 		return h.service.ExportAuditTrail(c.Context(), AuditTrailFilters{
 			WONumber: c.Query("wo_number"),
 			Action:   c.Query("action"),
@@ -177,7 +177,7 @@ func (h *Handler) PartialCompletion(c *fiber.Ctx) error {
 }
 
 func (h *Handler) ExportPartialCompletion(c *fiber.Ctx) error {
-	return h.sendExport(c, func() ([]byte, string, string, error) {
+	return h.sendExport(c, "partial-completion", func() ([]byte, string, string, error) {
 		return h.service.ExportPartialCompletion(c.Context(), PartialCompletionFilters{
 			FromDate:       c.Query("from_date"),
 			ToDate:         c.Query("to_date"),
@@ -186,10 +186,22 @@ func (h *Handler) ExportPartialCompletion(c *fiber.Ctx) error {
 	})
 }
 
-func (h *Handler) sendExport(c *fiber.Ctx, fn func() ([]byte, string, string, error)) error {
+func (h *Handler) sendExport(c *fiber.Ctx, reportType string, fn func() ([]byte, string, string, error)) error {
 	data, filename, contentType, err := fn()
 	if err != nil {
 		return response.Fail(c, err)
+	}
+	if c.Query("upload") == "true" {
+		url, uploadErr := h.service.MaybeUpload(c.Context(), reportType, filename, contentType, data, true)
+		if uploadErr != nil {
+			return response.Fail(c, uploadErr)
+		}
+		if url != "" {
+			return response.OK(c, fiber.Map{
+				"filename":    filename,
+				"uploaded_to": url,
+			})
+		}
 	}
 	c.Set("Content-Type", contentType)
 	c.Set("Content-Disposition", `attachment; filename="`+filename+`"`)

@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AppLayout } from './components/AppLayout'
+import { AdminRoute } from './components/AdminRoute'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { DashboardPage } from './pages/DashboardPage'
 import { LoginPage } from './pages/LoginPage'
@@ -15,6 +16,7 @@ import { WorkOrderDetailPage } from './pages/workorders/WorkOrderDetailPage'
 import { WorkOrdersPage } from './pages/workorders/WorkOrdersPage'
 import { ApprovalsPage } from './pages/approvals/ApprovalsPage'
 import { ReportsPage } from './pages/reports/ReportsPage'
+import { AdminPage } from './pages/admin/AdminPage'
 import { refreshSession } from './api/auth'
 import { useAuthStore } from './store/authStore'
 
@@ -71,6 +73,9 @@ export default function App() {
             <Route path="/workorders/:woNumber" element={<WorkOrderDetailPage />} />
             <Route path="/approvals" element={<ApprovalsPage />} />
             <Route path="/reports" element={<ReportsPage />} />
+            <Route element={<AdminRoute />}>
+              <Route path="/admin" element={<AdminPage />} />
+            </Route>
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/login" replace />} />

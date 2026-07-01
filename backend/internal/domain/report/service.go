@@ -5,14 +5,17 @@ import (
 	"strings"
 
 	"optistock/pkg/export"
+	"optistock/pkg/apperror"
+	"optistock/pkg/storage"
 )
 
 type Service struct {
-	repo *Repository
+	repo     *Repository
+	uploader *storage.Uploader
 }
 
-func NewService(repo *Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo *Repository, uploader *storage.Uploader) *Service {
+	return &Service{repo: repo, uploader: uploader}
 }
 
 func (s *Service) StockOnHand(ctx context.Context, f StockOnHandFilters) (*PageResult, error) {
@@ -91,6 +94,17 @@ func (s *Service) Export(ctx context.Context, reportType, format string, fetch f
 		return nil, "", "", err
 	}
 	return data, export.Filename(reportType, format), export.ContentType(format), nil
+}
+
+func (s *Service) MaybeUpload(ctx context.Context, reportType, filename, contentType string, data []byte, upload bool) (string, error) {
+	if !upload {
+		return "", nil
+	}
+	if s.uploader == nil || !s.uploader.Enabled() {
+		return "", apperror.WithMessage(apperror.ErrValidation, "S3 upload is not configured")
+	}
+	key := storage.ReportObjectKey(reportType, filename)
+	return s.uploader.Upload(ctx, key, contentType, data)
 }
 
 func (s *Service) ExportStockOnHand(ctx context.Context, f StockOnHandFilters, format string) ([]byte, string, string, error) {
